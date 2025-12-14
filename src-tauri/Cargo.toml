@@ -1,0 +1,25 @@
+[package]
+name = "zen-manager"
+version = "0.1.0"
+description = "A Tauri App"
+authors = ["you"]
+edition = "2021"
+
+# ЭТА СЕКЦИЯ ИСПРАВЛЯЕТ ВАШУ ОШИБКУ:
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.0.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0.0", features = [] }
+tauri-plugin-fs = "2.0.0"
+tauri-plugin-notification = "2.0.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[features]
+# this feature is used for production builds or when `dev` is NOT enabled
+custom-protocol = ["tauri/custom-protocol"]
