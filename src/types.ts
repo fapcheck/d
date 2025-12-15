@@ -21,6 +21,14 @@ export interface Client {
   tasks: Task[];
 }
 
+export interface AppSettings {
+  soundEnabled: boolean;
+}
+
+export const DEFAULT_SETTINGS: AppSettings = {
+  soundEnabled: true,
+};
+
 export const PRIORITY_CONFIG = {
   high: { label: 'Важно', color: 'text-red-400', border: 'border-red-400', bg: 'bg-red-400/10', weight: 3 },
   normal: { label: 'Обычно', color: 'text-blue-400', border: 'border-blue-400', bg: 'bg-blue-400/10', weight: 2 },

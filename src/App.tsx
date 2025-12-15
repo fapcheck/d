@@ -2,25 +2,32 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, LayoutDashboard, ArrowLeft, Clock, Send, UserPlus, Focus, 
-  ListTodo, ChevronDown, ChevronRight, FolderOpen, StickyNote, Archive, 
-  Copy, Check, CheckCircle2, Trash2, Coffee
+  ChevronDown, ChevronRight, FolderOpen, StickyNote, Archive, 
+  Copy, Check, CheckCircle2, Trash2, Settings
 } from 'lucide-react';
+
+import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { useZenData } from './hooks/useZenData';
 import { ClientCard } from './components/ClientCard';
 import { FocusView } from './components/FocusView';
+import { SortableTaskItem } from './components/SortableTaskItem';
+import { SettingsModal } from './components/SettingsModal'; // <-- Новое
 import { PRIORITY_CONFIG, EFFORT_CONFIG } from './types';
 import type { Priority, Effort, Client } from './types';
 
 function App() {
-  const { clients, isLoaded, actions } = useZenData();
+  const { clients, isLoaded, settings, actions } = useZenData();
 
-  // UI State (только то, что касается отображения)
+  // UI State
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'dashboard' | 'focus'>('dashboard');
   const [clientTab, setClientTab] = useState<'active' | 'archive' | 'notes'>('active');
   const [copiedId, setCopiedId] = useState<boolean>(false);
   const [isClientFormOpen, setIsClientFormOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false); // <-- Состояние настроек
   const [sectionsOpen, setSectionsOpen] = useState({ high: true, normal: true, low: true });
   
   // Form State
@@ -34,16 +41,27 @@ function App() {
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>('normal');
   const [newTaskEffort, setNewTaskEffort] = useState<Effort>('quick');
 
-  // Derived
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (active.id !== over?.id && selectedClientId) {
+      actions.reorderTasks(selectedClientId, Number(active.id), Number(over!.id));
+    }
+  };
+
   const selectedClient = clients.find(c => c.id === selectedClientId);
   const activeTasks = selectedClient?.tasks.filter(t => !t.isDone) || [];
+  
   const groupedClients = {
       high: clients.filter(c => c.priority === 'high'),
       normal: clients.filter(c => c.priority === 'normal'),
       low: clients.filter(c => c.priority === 'low')
   };
 
-  // Handlers
   const handleAddClient = () => {
     actions.addClient(newClientName, newClientPriority);
     setNewClientName('');
@@ -108,10 +126,18 @@ function App() {
     )
   };
 
-  if (!isLoaded) return <div className="min-h-screen bg-bg flex items-center justify-center text-white"><Clock className="animate-spin mr-2"/> Загрузка...</div>;
+  if (!isLoaded) return <div className="min-h-screen bg-bg flex items-center justify-center text-white"><Clock className="animate-spin mr-2"/> Загрузка БД...</div>;
 
   return (
     <div className="min-h-screen bg-bg p-8 flex flex-col items-center text-gray-200 font-sans selection:bg-primary selection:text-bg">
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+        settings={settings}
+        onToggleSound={actions.toggleSound}
+        onExport={actions.exportData}
+      />
+
       <header className="w-full max-w-5xl flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
           {selectedClientId && viewMode === 'dashboard' && (
@@ -119,9 +145,15 @@ function App() {
           )}
           <h1 className="text-2xl font-light tracking-wider text-white">Zen<span className="font-bold text-primary">Manager</span></h1>
         </div>
-        <div className="flex bg-surface rounded-xl p-1 gap-1 shadow-lg border border-white/5">
-            <button onClick={() => { setViewMode('dashboard'); setSelectedClientId(null); }} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-bold ${viewMode === 'dashboard' ? 'bg-primary text-bg' : 'text-secondary hover:text-white'}`}><LayoutDashboard size={16} /> Дашборд</button>
-            <button onClick={() => setViewMode('focus')} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-bold ${viewMode === 'focus' ? 'bg-accent text-bg' : 'text-secondary hover:text-white'}`}><Focus size={16} /> Фокус</button>
+        <div className="flex gap-4">
+            <div className="flex bg-surface rounded-xl p-1 gap-1 shadow-lg border border-white/5">
+                <button onClick={() => { setViewMode('dashboard'); setSelectedClientId(null); }} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-bold ${viewMode === 'dashboard' ? 'bg-primary text-bg' : 'text-secondary hover:text-white'}`}><LayoutDashboard size={16} /> Дашборд</button>
+                <button onClick={() => setViewMode('focus')} className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all text-sm font-bold ${viewMode === 'focus' ? 'bg-accent text-bg' : 'text-secondary hover:text-white'}`}><Focus size={16} /> Фокус</button>
+            </div>
+            {/* Кнопка настроек */}
+            <button onClick={() => setIsSettingsOpen(true)} className="bg-surface hover:bg-white/10 text-secondary hover:text-white p-3 rounded-xl border border-white/5 transition-colors">
+                <Settings size={20} />
+            </button>
         </div>
       </header>
 
@@ -130,7 +162,6 @@ function App() {
           {viewMode === 'dashboard' && !selectedClientId && (
             <motion.div key="clients-list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-10">
               
-              {/* Quick Task Bar */}
               <div className="bg-surface p-1 rounded-2xl shadow-lg border border-white/5 relative overflow-hidden">
                   <div className="bg-bg/50 p-4 rounded-xl flex flex-col md:flex-row gap-3 items-center">
                     <div className="w-full md:w-1/4 relative">
@@ -145,7 +176,6 @@ function App() {
                   </div>
               </div>
 
-              {/* Client List */}
               <div>
                   <div className="flex items-center gap-3 mb-6">
                     <h2 className="text-xl font-light text-white">Ваши клиенты</h2>
@@ -192,23 +222,22 @@ function App() {
                         <input type="text" placeholder="Что нужно сделать?" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddTaskInternal()} className="flex-1 bg-transparent text-white px-4 py-3 outline-none placeholder-secondary/50 text-lg"/>
                         <button onClick={handleAddTaskInternal} className="bg-primary text-bg p-3 rounded-xl"><Plus size={20} /></button>
                     </div>
-                    <div className="space-y-3">
-                        {activeTasks.length === 0 ? <div className="text-center py-20 text-secondary/30 text-lg">Задач нет.</div> : activeTasks.map(task => (
-                          <motion.div layout key={task.id} className="bg-surface p-5 rounded-2xl flex items-center justify-between group border border-white/5 hover:border-white/10 transition-all hover:translate-x-1">
-                            <div className="flex items-center gap-5 flex-1">
-                              <button onClick={() => actions.toggleTask(selectedClient.id, task.id)} className="w-7 h-7 rounded-full border-2 border-secondary/50 hover:border-success hover:bg-success/10 transition-all shrink-0" />
-                              <div>
-                                <div className="text-white text-lg font-medium">{task.title}</div>
-                                <div className="flex gap-3 mt-1.5 opacity-60">
-                                  <span className={`text-xs ${PRIORITY_CONFIG[task.priority].color}`}>{PRIORITY_CONFIG[task.priority].label}</span>
-                                  <span className={`text-xs ${EFFORT_CONFIG[task.effort].color}`}>{EFFORT_CONFIG[task.effort].label}</span>
-                                </div>
-                              </div>
+
+                    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+                        <SortableContext items={activeTasks} strategy={verticalListSortingStrategy}>
+                            <div className="space-y-3">
+                                {activeTasks.length === 0 ? <div className="text-center py-20 text-secondary/30 text-lg">Задач нет.</div> : activeTasks.map(task => (
+                                    <SortableTaskItem 
+                                        key={task.id} 
+                                        task={task} 
+                                        onToggle={() => actions.toggleTask(selectedClient.id, task.id)}
+                                        onDelete={() => actions.deleteTask(selectedClient.id, task.id)}
+                                        onUpdateTitle={(title) => actions.updateTaskTitle(selectedClient.id, task.id, title)}
+                                    />
+                                ))}
                             </div>
-                            <button onClick={() => actions.deleteTask(selectedClient.id, task.id)} className="text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity ml-4 p-2"><Trash2 size={18} /></button>
-                          </motion.div>
-                        ))}
-                    </div>
+                        </SortableContext>
+                    </DndContext>
                   </motion.div>
                 )}
                 {clientTab === 'notes' && (
@@ -227,6 +256,7 @@ function App() {
                                  <div className="text-success"><CheckCircle2 size={18} /></div>
                                  <div className="flex-1 text-gray-400 line-through">{task.title}</div>
                                  <button onClick={() => actions.toggleTask(selectedClient.id, task.id)} className="text-xs text-secondary hover:text-white opacity-0 group-hover:opacity-100 underline">Вернуть</button>
+                                 <button onClick={() => actions.deleteTask(selectedClient.id, task.id)} className="text-secondary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity ml-4 p-2"><Trash2 size={18} /></button>
                            </div>
                         ))}
                      </div>
