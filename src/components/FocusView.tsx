@@ -20,15 +20,19 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
         }
       });
     });
-    
     if (allTasks.length === 0) return null;
     
+    // --- ИЗМЕНЕННАЯ ЛОГИКА СОРТИРОВКИ ---
     allTasks.sort((a, b) => {
-      const clientDiff = PRIORITY_CONFIG[b.client.priority].weight - PRIORITY_CONFIG[a.client.priority].weight;
-      if (clientDiff !== 0) return clientDiff;
+      // 1. Сначала сравниваем важность ЗАДАЧ
       const taskDiff = PRIORITY_CONFIG[b.task.priority].weight - PRIORITY_CONFIG[a.task.priority].weight;
-      return taskDiff;
+      if (taskDiff !== 0) return taskDiff; // Если задачи разные по важности, возвращаем результат
+
+      // 2. Если задачи одинаковые по важности, сравниваем важность КЛИЕНТОВ
+      const clientDiff = PRIORITY_CONFIG[b.client.priority].weight - PRIORITY_CONFIG[a.client.priority].weight;
+      return clientDiff;
     });
+    // -------------------------------------
     
     return allTasks[0];
   };
@@ -45,7 +49,7 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
     >
         {focusItem ? (
             <div className="w-full text-center">
-                <div className="mb-8 inline-flex items-center gap-2 px-6 py-2 rounded-full bg-accent/10 text-accent text-sm font-bold animate-pulse tracking-widest uppercase">
+                 <div className="mb-8 inline-flex items-center gap-2 px-6 py-2 rounded-full bg-accent/10 text-accent text-sm font-bold animate-pulse tracking-widest uppercase">
                     <Target size={18} />
                     Главный приоритет
                 </div>
@@ -53,14 +57,17 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
                     <div className="absolute top-0 right-0 p-10 opacity-5 group-hover:opacity-10 transition-opacity">
                         <Flame size={200} />
                     </div>
+                    
                     <div className="relative z-10">
                         <h3 className="text-secondary text-xl mb-4">
                             Клиент: <span className="text-white font-bold">{focusItem.client.name}</span>
                         </h3>
+                        
                         <div className="h-px w-20 bg-white/10 mx-auto mb-8"></div>
                         <h1 className="text-4xl md:text-5xl font-bold text-white mb-8 leading-tight">
                             {focusItem.task.title}
                         </h1>
+                        
                         <div className="flex justify-center gap-4 mb-10">
                             <div className={`px-4 py-2 rounded-xl border border-white/5 flex items-center gap-2 ${PRIORITY_CONFIG[focusItem.task.priority].color}`}>
                                 <Flame size={18} />
