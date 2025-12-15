@@ -30,15 +30,37 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export const PRIORITY_CONFIG = {
-  high: { label: 'Важно', color: 'text-red-400', border: 'border-red-400', bg: 'bg-red-400/10', weight: 3 },
-  normal: { label: 'Обычно', color: 'text-blue-400', border: 'border-blue-400', bg: 'bg-blue-400/10', weight: 2 },
-  low: { label: 'Не горит', color: 'text-green-400', border: 'border-green-400', bg: 'bg-green-400/10', weight: 1 },
+  // ИСПРАВЛЕНИЕ: Добавлено поле indicator с явными классами фона
+  high: { 
+    label: 'Высокий', 
+    color: 'text-error', 
+    indicator: 'bg-error', // Явный класс
+    border: 'border-error', 
+    bg: 'bg-error/20', 
+    weight: 3 
+  },
+  normal: { 
+    label: 'Обычный', 
+    color: 'text-primary', 
+    indicator: 'bg-primary', // Явный класс
+    border: 'border-primary', 
+    bg: 'bg-primary/20', 
+    weight: 2 
+  },
+  low: { 
+    label: 'Низкий', 
+    color: 'text-success', 
+    indicator: 'bg-success', // Явный класс
+    border: 'border-success', 
+    bg: 'bg-success/20', 
+    weight: 1 
+  },
 };
 
 export const EFFORT_CONFIG = {
-  quick: { label: '5 мин', icon: Zap, color: 'text-yellow-400' },
-  medium: { label: '30 мин', icon: Clock, color: 'text-orange-400' },
-  long: { label: 'Долго', icon: Coffee, color: 'text-purple-400' },
+  quick: { label: '5 мин', icon: Zap, color: 'text-warning' },
+  medium: { label: '30 мин', icon: Clock, color: 'text-primary' },
+  long: { label: 'Долго', icon: Coffee, color: 'text-accent' },
 };
 
 export const DB_FILENAME = 'zen-db.json';

@@ -12,12 +12,8 @@ export function useZenData() {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoaded, setIsLoaded] = useState(false);
   
-  const clientsRef = useRef<Client[]>([]);
+  // Ref для аудио контекста, чтобы не пересоздавать
   const audioContextRef = useRef<AudioContext | null>(null);
-
-  useEffect(() => {
-    clientsRef.current = clients;
-  }, [clients]);
 
   // --- AUDIO ENGINE ---
   const playSound = () => {
@@ -27,6 +23,8 @@ export function useZenData() {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       const ctx = audioContextRef.current;
+      if (!ctx) return;
+      
       if (ctx.state === 'suspended') ctx.resume();
 
       const oscillator = ctx.createOscillator();
@@ -62,59 +60,63 @@ export function useZenData() {
 
   // --- FILE SYSTEM STORAGE ---
 
-  const saveDataToDisk = async (newClients: Client[]) => {
-    try {
-      const content = JSON.stringify(newClients, null, 2);
-      await writeTextFile(DB_FILENAME, content, { baseDir: BaseDirectory.AppLocalData });
-    } catch (err) {
-      console.error('Failed to save data:', err);
-    }
-  };
-
-  const loadDataFromDisk = async () => {
-    try {
-      const dirExists = await exists('', { baseDir: BaseDirectory.AppLocalData });
-      if (!dirExists) {
-          // mkdir logic handled by OS or installer usually, but strictly we might check here
-      }
-
-      const fileExists = await exists(DB_FILENAME, { baseDir: BaseDirectory.AppLocalData });
-      
-      if (fileExists) {
-        const content = await readTextFile(DB_FILENAME, { baseDir: BaseDirectory.AppLocalData });
-        const parsed = JSON.parse(content);
-        parsed.sort((a: Client, b: Client) => a.id - b.id);
-        setClients(parsed);
-      } else {
-        await writeTextFile(DB_FILENAME, '[]', { baseDir: BaseDirectory.AppLocalData });
-        setClients([]);
-      }
-    } catch (err) {
-      console.error('Error loading data:', err);
-      const local = localStorage.getItem('zen_backup_web');
-      if (local) setClients(JSON.parse(local));
-    } finally {
-      setIsLoaded(true);
-    }
-  };
-
+  // Загрузка данных при старте
   useEffect(() => {
-    const localSettings = localStorage.getItem('zen_settings');
-    if (localSettings) {
-        setSettings(JSON.parse(localSettings));
-    }
-    loadDataFromDisk();
+    const loadData = async () => {
+        try {
+            // 1. Загружаем настройки
+            const localSettings = localStorage.getItem('zen_settings');
+            if (localSettings) setSettings(JSON.parse(localSettings));
+
+            // 2. Проверяем наличие файла БД
+            const fileExists = await exists(DB_FILENAME, { baseDir: BaseDirectory.AppLocalData });
+            
+            if (fileExists) {
+                const content = await readTextFile(DB_FILENAME, { baseDir: BaseDirectory.AppLocalData });
+                const parsed = JSON.parse(content);
+                // Сортировка для стабильности
+                parsed.sort((a: Client, b: Client) => a.id - b.id);
+                setClients(parsed);
+            } else {
+                // Если файла нет, создаем пустой
+                await writeTextFile(DB_FILENAME, '[]', { baseDir: BaseDirectory.AppLocalData });
+                setClients([]);
+            }
+        } catch (err) {
+            console.error('Error loading data:', err);
+            // Fallback на localStorage в браузере (для отладки без Tauri)
+            const local = localStorage.getItem('zen_backup_web');
+            if (local) setClients(JSON.parse(local));
+        } finally {
+            setIsLoaded(true);
+        }
+    };
+    loadData();
   }, []);
 
-  // --- ACTIONS ---
+  // Автосохранение (Эффект реагирует на изменение clients)
+  useEffect(() => {
+      if (!isLoaded) return; // Не сохранять, пока не загрузились (защита от перезаписи пустым массивом)
 
-  const updateClientsState = (updater: (prev: Client[]) => Client[]) => {
-      setClients(prev => {
-          const newState = updater(prev);
-          saveDataToDisk(newState);
-          return newState;
-      });
-  };
+      const saveToDisk = async () => {
+          try {
+              const content = JSON.stringify(clients, null, 2);
+              await writeTextFile(DB_FILENAME, content, { baseDir: BaseDirectory.AppLocalData });
+          } catch (err) {
+              console.error('Failed to save data:', err);
+              // Бэкап в localStorage на всякий случай
+              localStorage.setItem('zen_backup_web', JSON.stringify(clients));
+          }
+      };
+
+      // Debounce: сохраняем не чаще, чем раз в 500мс (полезно при печати заметок)
+      const timeoutId = setTimeout(saveToDisk, 500);
+      return () => clearTimeout(timeoutId);
+
+  }, [clients, isLoaded]);
+
+
+  // --- ACTIONS (Теперь они просто меняют стейт, сохранение делает useEffect) ---
 
   const toggleSound = () => {
       const newSettings = { ...settings, soundEnabled: !settings.soundEnabled };
@@ -122,7 +124,7 @@ export function useZenData() {
       localStorage.setItem('zen_settings', JSON.stringify(newSettings));
   };
 
-  const exportData = async () => {
+  const exportData = () => {
       const dataStr = JSON.stringify(clients, null, 2);
       const blob = new Blob([dataStr], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -136,30 +138,30 @@ export function useZenData() {
 
   const addClient = (name: string, priority: Priority) => {
     const newClient: Client = { id: Date.now(), name, priority, notes: '', tasks: [] };
-    updateClientsState(prev => [...prev, newClient]);
+    setClients(prev => [...prev, newClient]);
   };
 
   const removeClient = (id: number) => {
-    updateClientsState(prev => prev.filter(c => c.id !== id));
+    setClients(prev => prev.filter(c => c.id !== id));
   };
 
   const updateClientPriority = (clientId: number, priority: Priority) => {
-    updateClientsState(prev => prev.map(c => c.id === clientId ? { ...c, priority } : c));
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, priority } : c));
   };
 
   const updateClientNotes = (clientId: number, notes: string) => {
-    updateClientsState(prev => prev.map(c => c.id === clientId ? { ...c, notes } : c));
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, notes } : c));
   };
 
   const addTask = (clientId: number, title: string, priority: Priority, effort: Effort) => {
     const newTask: Task = { id: Date.now(), title, isDone: false, priority, effort, createdAt: Date.now() };
-    updateClientsState(prev => prev.map(c => 
+    setClients(prev => prev.map(c => 
         c.id === clientId ? { ...c, tasks: [newTask, ...c.tasks] } : c
     ));
   };
 
   const updateTaskTitle = (clientId: number, taskId: number, newTitle: string) => {
-    updateClientsState(prev => prev.map(c => 
+    setClients(prev => prev.map(c => 
         c.id === clientId ? { 
             ...c, 
             tasks: c.tasks.map(t => t.id === taskId ? { ...t, title: newTitle } : t) 
@@ -167,9 +169,8 @@ export function useZenData() {
     ));
   };
 
-  // НОВЫЕ ФУНКЦИИ
   const updateTaskPriority = (clientId: number, taskId: number, priority: Priority) => {
-    updateClientsState(prev => prev.map(c => 
+    setClients(prev => prev.map(c => 
         c.id === clientId ? { 
             ...c, 
             tasks: c.tasks.map(t => t.id === taskId ? { ...t, priority } : t) 
@@ -178,7 +179,7 @@ export function useZenData() {
   };
 
   const updateTaskEffort = (clientId: number, taskId: number, effort: Effort) => {
-    updateClientsState(prev => prev.map(c => 
+    setClients(prev => prev.map(c => 
         c.id === clientId ? { 
             ...c, 
             tasks: c.tasks.map(t => t.id === taskId ? { ...t, effort } : t) 
@@ -187,7 +188,7 @@ export function useZenData() {
   };
 
   const toggleTask = (clientId: number, taskId: number) => {
-    updateClientsState(prev => prev.map(c => {
+    setClients(prev => prev.map(c => {
         if (c.id !== clientId) return c;
         return {
             ...c,
@@ -207,13 +208,13 @@ export function useZenData() {
   };
 
   const deleteTask = (clientId: number, taskId: number) => {
-    updateClientsState(prev => prev.map(c => 
+    setClients(prev => prev.map(c => 
         c.id === clientId ? { ...c, tasks: c.tasks.filter(t => t.id !== taskId) } : c
     ));
   };
 
   const reorderTasks = (clientId: number, activeId: number, overId: number) => {
-      updateClientsState(prev => prev.map(c => {
+      setClients(prev => prev.map(c => {
           if (c.id !== clientId) return c;
           const oldIndex = c.tasks.findIndex(t => t.id === activeId);
           const newIndex = c.tasks.findIndex(t => t.id === overId);
@@ -235,8 +236,8 @@ export function useZenData() {
       updateClientNotes,
       addTask,
       updateTaskTitle,
-      updateTaskPriority, // <-- Экспортируем
-      updateTaskEffort,   // <-- Экспортируем
+      updateTaskPriority,
+      updateTaskEffort,
       toggleTask,
       deleteTask,
       reorderTasks,

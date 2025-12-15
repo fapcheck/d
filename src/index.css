@@ -2,14 +2,44 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+
 body {
-  background-color: #1e1e2e;
-  color: #cdd6f4;
-  font-family: 'Segoe UI', sans-serif;
+  background-color: #0f1117;
+  color: #a6accd;
+  font-family: 'Inter', sans-serif;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #1e1e2e; }
-::-webkit-scrollbar-thumb { background: #45475a; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #585b70; }
+/* Эффект матового стекла (The Zen Glass Effect) */
+.glass {
+  @apply bg-[#161b22]/60 backdrop-blur-xl border border-white/[0.03];
+}
+
+.glass-hover {
+  @apply hover:bg-[#1f2430]/80 hover:border-white/[0.08] transition-all duration-300;
+}
+
+/* Тонкий, эстетичный скроллбар */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { 
+  background: #30363d; 
+  border-radius: 10px; 
+}
+::-webkit-scrollbar-thumb:hover { background: #444c56; }
+
+/* Убираем синюю обводку при клике */
+*:focus {
+  outline: none;
+}
+input:focus, textarea:focus {
+  @apply ring-1 ring-primary/30 border-primary/30;
+}
+
+/* Плавный выбор текста */
+::selection {
+  background: rgba(130, 170, 255, 0.2);
+  color: #fff;
+}
