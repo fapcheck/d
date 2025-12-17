@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, LayoutDashboard, ArrowLeft, Clock, UserPlus, Focus, 
-  ChevronDown, ChevronRight, FolderOpen, Copy, Check, CheckCircle2, Trash2, Settings
+  ChevronDown, ChevronRight, FolderOpen, Copy, Check, CheckCircle2, Trash2, 
+  Settings, Trophy, BarChart3, Brain, RotateCcw, RotateCw
 } from 'lucide-react';
 import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
@@ -14,14 +15,19 @@ import { FocusView } from './components/FocusView';
 import { SortableTaskItem } from './components/SortableTaskItem';
 import { SettingsModal } from './components/SettingsModal';
 import { QuickTaskBar } from './components/QuickTaskBar';
+import { CommentsModal } from './components/CommentsModal';
+import { AchievementsModal } from './components/AchievementsModal';
+import { LevelProgress } from './components/LevelProgress';
+import { NotificationToast } from './components/NotificationToast';
+import { StatsDashboard } from './components/StatsDashboard';
+import { ProductivityHealthIndicator } from './components/ProductivityHealth';
+import { HistoryPanel } from './components/HistoryPanel';
+import { TimePredictionCard } from './components/TimePrediction';
 
 import { PRIORITY_CONFIG, EFFORT_CONFIG } from './types';
 import type { Priority, Effort, Client } from './types';
 
-// --- Types ---
 type ClientTab = 'active' | 'archive' | 'notes';
-
-// --- Sub-components ---
 
 interface ClientSectionProps {
     type: Priority;
@@ -40,7 +46,6 @@ const ClientSection: React.FC<ClientSectionProps> = ({
 }) => {
     if (items.length === 0) return null;
     return (
-        // ИСПРАВЛЕНИЕ: Убрал margin-bottom (mb-8), теперь отступы контролирует родительский flex gap
         <div className="w-full">
             <button 
               onClick={onToggle}
@@ -79,18 +84,23 @@ const ClientSection: React.FC<ClientSectionProps> = ({
     );
 };
 
-// --- Main Component ---
-
 function App() {
-  const { clients, isLoaded, settings, actions } = useZenData();
+  const { clients, isLoaded, settings, userProgress, newAchievement, actions } = useZenData();
   
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
-  const [viewMode, setViewMode] = useState<'dashboard' | 'focus'>('dashboard');
+  const [viewMode, setViewMode] = useState<'dashboard' | 'focus' | 'analytics' | 'intelligence'>('dashboard');
   const [clientTab, setClientTab] = useState<ClientTab>('active');
-  const [copiedId, setCopiedId] = useState<boolean>(false);
+  const [copiedId, setCopiedId] = useState(false);
   const [isClientFormOpen, setIsClientFormOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
   const [sectionsOpen, setSectionsOpen] = useState({ high: true, normal: true, low: true });
+  
+  const [commentsModal, setCommentsModal] = useState<{
+    isOpen: boolean;
+    taskId: number | null;
+    taskTitle: string;
+  }>({ isOpen: false, taskId: null, taskTitle: '' });
   
   const [newClientName, setNewClientName] = useState('');
   const [newClientPriority, setNewClientPriority] = useState<Priority>('normal');
@@ -111,18 +121,31 @@ function App() {
     }
   };
 
-  const selectedClient = clients.find(c => c.id === selectedClientId);
-  const activeTasks = selectedClient?.tasks.filter(t => !t.isDone) || [];
+  const selectedClient = useMemo(
+    () => clients.find(c => c.id === selectedClientId) ?? null,
+    [clients, selectedClientId]
+  );
 
-  const groupedClients = {
+  const activeTasks = useMemo(
+    () => (selectedClient?.tasks ?? []).filter(t => !t.isDone),
+    [selectedClient?.tasks]
+  );
+
+  const groupedClients = useMemo(() => ({
       high: clients.filter(c => c.priority === 'high'),
       normal: clients.filter(c => c.priority === 'normal'),
       low: clients.filter(c => c.priority === 'low')
-  };
+  }), [clients]);
+
+  const selectedPrediction = useMemo(() => {
+    if (!selectedClientId) return null;
+    return userProgress.timePredictions.find(p => p.projectId === selectedClientId) || null;
+  }, [selectedClientId, userProgress.timePredictions]);
 
   const handleAddClient = () => {
-    if (!newClientName.trim()) return;
-    actions.addClient(newClientName, newClientPriority);
+    const name = newClientName.trim();
+    if (!name) return;
+    actions.addClient(name, newClientPriority);
     setNewClientName('');
     setNewClientPriority('normal');
     setIsClientFormOpen(false);
@@ -130,7 +153,7 @@ function App() {
 
   const handleAddTaskInternal = () => {
      if (selectedClientId && newTaskTitle.trim()) {
-         actions.addTask(selectedClientId, newTaskTitle, newTaskPriority, newTaskEffort);
+         actions.addTask(selectedClientId, newTaskTitle.trim(), newTaskPriority, newTaskEffort);
          setNewTaskTitle('');
          setNewTaskPriority('normal');
          setNewTaskEffort('quick');
@@ -147,6 +170,20 @@ function App() {
     navigator.clipboard.writeText(report);
     setCopiedId(true);
     setTimeout(() => setCopiedId(false), 2000);
+  };
+
+  const handleOpenComments = (taskId: number, taskTitle: string) => {
+    setCommentsModal({ isOpen: true, taskId, taskTitle });
+  };
+
+  const handleCloseComments = () => {
+    setCommentsModal({ isOpen: false, taskId: null, taskTitle: '' });
+  };
+
+  const handleAddComment = (text: string) => {
+    if (selectedClientId && commentsModal.taskId) {
+      actions.addTaskComment(selectedClientId, commentsModal.taskId, text);
+    }
   };
 
   if (!isLoaded) {
@@ -169,6 +206,31 @@ function App() {
         onExport={actions.exportData}
       />
 
+      <AchievementsModal
+        isOpen={isAchievementsOpen}
+        onClose={() => setIsAchievementsOpen(false)}
+        achievements={userProgress.achievements}
+      />
+
+      {selectedClient && commentsModal.taskId && (
+        <CommentsModal
+          isOpen={commentsModal.isOpen}
+          onClose={handleCloseComments}
+          comments={selectedClient.tasks.find(t => t.id === commentsModal.taskId)?.comments || []}
+          onAddComment={handleAddComment}
+          taskTitle={commentsModal.taskTitle}
+        />
+      )}
+
+      <AnimatePresence>
+        {newAchievement && (
+          <NotificationToast
+            achievement={newAchievement}
+            onClose={actions.dismissAchievement}
+          />
+        )}
+      </AnimatePresence>
+
       <header className="w-full max-w-5xl flex justify-between items-center mb-10">
         <div className="flex items-center gap-4">
            {selectedClientId && viewMode === 'dashboard' && (
@@ -189,17 +251,61 @@ function App() {
                     <LayoutDashboard size={14} /> DASHBOARD
                 </button>
                 <button 
+                    onClick={() => setViewMode('analytics')} 
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg transition-all text-xs font-bold tracking-wide ${viewMode === 'analytics' ? 'bg-accent/20 text-accent shadow-inner' : 'text-secondary hover:text-white hover:bg-white/5'}`}
+                >
+                    <BarChart3 size={14} /> ANALYTICS
+                </button>
+                <button 
+                    onClick={() => setViewMode('intelligence')} 
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg transition-all text-xs font-bold tracking-wide ${viewMode === 'intelligence' ? 'bg-purple-500/20 text-purple-400 shadow-inner' : 'text-secondary hover:text-white hover:bg-white/5'}`}
+                >
+                    <Brain size={14} /> AI
+                </button>
+                <button 
                     onClick={() => setViewMode('focus')} 
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg transition-all text-xs font-bold tracking-wide ${viewMode === 'focus' ? 'bg-accent/20 text-accent shadow-inner' : 'text-secondary hover:text-white hover:bg-white/5'}`}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg transition-all text-xs font-bold tracking-wide ${viewMode === 'focus' ? 'bg-green-500/20 text-green-400 shadow-inner' : 'text-secondary hover:text-white hover:bg-white/5'}`}
                 >
                     <Focus size={14} /> FOCUS
                 </button>
             </div>
+            
+            {/* Кнопка достижений */}
+            <button 
+              onClick={() => setIsAchievementsOpen(true)}
+              className="glass hover:bg-white/10 text-secondary hover:text-yellow-400 p-3 rounded-xl transition-colors shadow-sm relative"
+              title="Достижения"
+            >
+              <Trophy size={20} />
+              {userProgress.achievements.filter(a => a.unlockedAt).length > 0 && (
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center">
+                  <span className="text-xs font-bold text-bg">
+                    {userProgress.achievements.filter(a => a.unlockedAt).length}
+                  </span>
+                </div>
+              )}
+            </button>
+            
+            {/* НОВОЕ: История изменений */}
+            <HistoryPanel
+              history={actions.getHistory()}
+              onUndo={actions.undo}
+              onRedo={actions.redo}
+            />
+            
             <button onClick={() => setIsSettingsOpen(true)} className="glass hover:bg-white/10 text-secondary hover:text-white p-3 rounded-xl transition-colors shadow-sm">
                 <Settings size={20} />
             </button>
         </div>
       </header>
+
+      <div className="w-full max-w-5xl mb-8">
+        <LevelProgress 
+          points={userProgress.totalPoints}
+          level={userProgress.level}
+          className="justify-end"
+        />
+      </div>
 
       <main className="w-full max-w-5xl relative">
         <AnimatePresence mode="wait">
@@ -268,7 +374,6 @@ function App() {
                         <p className="font-light tracking-wide">Пространство пусто. Создайте первый проект.</p>
                     </div> 
                   ) : (
-                    // ИСПРАВЛЕНИЕ: Используем flex flex-col gap-8 для идеальных отступов между категориями
                     <div className="flex flex-col gap-8">
                         {(['high', 'normal', 'low'] as Priority[]).map(type => (
                             <ClientSection 
@@ -393,6 +498,9 @@ function App() {
                                             onUpdateTitle={(title) => actions.updateTaskTitle(selectedClient.id, task.id, title)}
                                             onUpdatePriority={(priority) => actions.updateTaskPriority(selectedClient.id, task.id, priority)}
                                             onUpdateEffort={(effort) => actions.updateTaskEffort(selectedClient.id, task.id, effort)}
+                                            onUpdateDueDate={(dueDate) => actions.updateTaskDueDate(selectedClient.id, task.id, dueDate)}
+                                            onAddComment={(text) => actions.addTaskComment(selectedClient.id, task.id, text)}
+                                            onOpenComments={() => handleOpenComments(task.id, task.title)}
                                       />
                                     ))
                                 )}
@@ -436,7 +544,14 @@ function App() {
                         {selectedClient.tasks.filter(t => t.isDone).map(task => (
                              <div key={task.id} className="glass p-4 rounded-xl flex items-center gap-4 group hover:bg-white/[0.03] transition-colors border border-transparent hover:border-white/5">
                                  <div className="text-success/50"><CheckCircle2 size={18} /></div>
-                                 <div className="flex-1 text-secondary line-through decoration-white/10 text-sm">{task.title}</div>
+                                 <div className="flex-1 text-secondary line-through decoration-white/10 text-sm">
+                                   {task.title}
+                                   {task.pointsEarned && task.pointsEarned > 0 && (
+                                     <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-1 rounded">
+                                       +{task.pointsEarned} очков
+                                     </span>
+                                   )}
+                                 </div>
                                  <button onClick={() => actions.toggleTask(selectedClient.id, task.id)} className="text-xs text-secondary hover:text-white opacity-0 group-hover:opacity-100 underline transition-opacity">
                                     Вернуть
                                  </button>
@@ -452,7 +567,55 @@ function App() {
             </motion.div>
           )}
 
-          {viewMode === 'focus' && <FocusView clients={clients} onToggleTask={actions.toggleTask} />}
+          {viewMode === 'analytics' && (
+            <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
+              <StatsDashboard 
+                clients={clients} 
+                focusSessions={userProgress.focusSessions}
+              />
+            </motion.div>
+          )}
+
+          {viewMode === 'intelligence' && (
+            <motion.div key="intelligence" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
+              {/* Индикатор здоровья продуктивности */}
+              <ProductivityHealthIndicator 
+                health={userProgress.productivityHealth}
+              />
+              
+              {/* Предикция времени для выбранного проекта или всех проектов */}
+              {selectedClient && selectedPrediction ? (
+                <TimePredictionCard 
+                  client={selectedClient}
+                  prediction={selectedPrediction}
+                />
+              ) : clients.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {clients.slice(0, 4).map(client => {
+                    const prediction = userProgress.timePredictions.find(p => p.projectId === client.id);
+                    return prediction ? (
+                      <TimePredictionCard 
+                        key={client.id}
+                        client={client}
+                        prediction={prediction}
+                      />
+                    ) : null;
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-20 text-secondary/40">
+                  <Brain size={64} className="mx-auto mb-6 opacity-10" />
+                  <p className="font-light tracking-wide">Создайте проекты для получения ИИ-аналитики</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {viewMode === 'focus' && (
+            <motion.div key="focus-mode" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}>
+              <FocusView clients={clients} onToggleTask={actions.toggleTask} />
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
     </div>

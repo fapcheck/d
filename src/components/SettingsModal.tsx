@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, Volume2, VolumeX, Download, Github } from 'lucide-react';
-// ИСПРАВЛЕНИЕ ЗДЕСЬ: Добавлено слово type
+import { X, Volume2, VolumeX, Download, Github, RotateCcw } from 'lucide-react';
 import type { AppSettings } from '../types';
 
 interface SettingsModalProps {
@@ -14,6 +13,13 @@ interface SettingsModalProps {
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, settings, onToggleSound, onExport }) => {
   if (!isOpen) return null;
+
+  const handleReset = () => {
+    if (confirm('Сбросить все данные? Это действие нельзя отменить.')) {
+      localStorage.removeItem('zen_backup_web');
+      window.location.reload();
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -30,7 +36,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
         </div>
 
         <div className="space-y-4">
-            {/* Sound Toggle */}
             <div className="flex items-center justify-between p-4 bg-bg/50 rounded-2xl">
                 <div className="flex items-center gap-3 text-white">
                     {settings.soundEnabled ? <Volume2 className="text-primary"/> : <VolumeX className="text-secondary"/>}
@@ -44,7 +49,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                 </button>
             </div>
 
-            {/* Export Data */}
             <button 
                 onClick={onExport}
                 className="w-full flex items-center justify-between p-4 bg-bg/50 rounded-2xl hover:bg-bg transition-colors group text-left"
@@ -54,6 +58,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, s
                     <div>
                         <div className="font-medium">Экспорт данных</div>
                         <div className="text-xs text-secondary">Сохранить резервную копию JSON</div>
+                    </div>
+                </div>
+            </button>
+
+            <button 
+                onClick={handleReset}
+                className="w-full flex items-center justify-between p-4 bg-bg/50 rounded-2xl hover:bg-bg transition-colors group text-left border border-white/5"
+            >
+                <div className="flex items-center gap-3 text-white">
+                    <RotateCcw className="text-warning" />
+                    <div>
+                        <div className="font-medium">Сбросить данные</div>
+                        <div className="text-xs text-secondary">Очистить всё и перезапустить</div>
                     </div>
                 </div>
             </button>

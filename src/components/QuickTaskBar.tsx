@@ -12,23 +12,20 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }
     const [quickClientId, setQuickClientId] = useState<string>('');
     const [quickTaskTitle, setQuickTaskTitle] = useState('');
     const [quickTaskEffort, setQuickTaskEffort] = useState<Effort>('quick');
-    // ИСПРАВЛЕНИЕ: Добавил стейт для приоритета
     const [quickTaskPriority, setQuickTaskPriority] = useState<Priority>('normal');
 
     const handleAdd = () => {
         if (!quickClientId || !quickTaskTitle.trim()) return;
-        onAddTask(Number(quickClientId), quickTaskTitle, quickTaskPriority, quickTaskEffort);
+        onAddTask(Number(quickClientId), quickTaskTitle.trim(), quickTaskPriority, quickTaskEffort);
         setQuickTaskTitle('');
         setQuickTaskEffort('quick');
         setQuickTaskPriority('normal');
     };
 
-    // ИСПРАВЛЕНИЕ: Добавлен класс glass прямо сюда, убраны лишние margin/padding из App.tsx
     return (
         <div className="glass rounded-2xl shadow-zen p-1 relative overflow-visible z-20 mb-10">
             <div className="flex flex-col md:flex-row gap-2 items-center">
                 
-                {/* Выбор клиента */}
                 <div className="w-full md:w-1/4 relative group">
                     <select 
                         value={quickClientId} 
@@ -42,7 +39,6 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }
                     <div className="absolute right-0 top-2 bottom-2 w-px bg-white/5 hidden md:block"></div>
                 </div>
                 
-                {/* Ввод задачи */}
                 <div className="flex-1 w-full relative flex items-center gap-2 pr-2">
                     <input 
                         type="text" 
@@ -53,7 +49,6 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }
                         className="flex-1 w-full bg-transparent text-white px-4 py-3 outline-none placeholder-secondary/40"
                     />
              
-                    {/* ИСПРАВЛЕНИЕ: Вернул выбор приоритета (точки) */}
                     <div className="flex bg-white/5 rounded-lg p-1 gap-1 shrink-0">
                         {(['high', 'normal', 'low'] as Priority[]).map(p => (
                             <button
@@ -71,7 +66,6 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }
                         ))}
                     </div>
 
-                    {/* Effort Selector */}
                     <div className="flex bg-white/5 rounded-lg p-1 gap-1 shrink-0">
                         {(['quick', 'medium', 'long'] as Effort[]).map(e => {
                             const Icon = EFFORT_CONFIG[e].icon;

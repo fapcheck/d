@@ -11,7 +11,7 @@ interface ClientCardProps {
   onUpdatePriority: (id: number, priority: Priority) => void;
 }
 
-export const ClientCard: React.FC<ClientCardProps> = ({ client, onClick, onRemove, onUpdatePriority }) => {
+export const ClientCard = React.memo<ClientCardProps>(({ client, onClick, onRemove, onUpdatePriority }) => {
   const activeCount = client.tasks.filter(t => !t.isDone).length;
   const doneCount = client.tasks.filter(t => t.isDone).length;
   const [isDeleting, setIsDeleting] = useState(false);
@@ -29,25 +29,18 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onClick, onRemov
     }
   };
 
-  // ИСПРАВЛЕНИЕ: Берем цвет из явного свойства indicator, а не вычисляем его
   const indicatorColor = PRIORITY_CONFIG[client.priority].indicator;
 
   return (
-    <motion.div 
+    <motion.div
       layout
       initial={{ scale: 0.95, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       whileHover={{ y: -2, scale: 1.01 }}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
-      className={`
-        glass glass-hover
-        relative p-5 rounded-xl cursor-pointer 
-        group overflow-hidden
-        shadow-sm hover:shadow-zen
-      `}
+      className="glass glass-hover relative p-5 rounded-xl cursor-pointer group overflow-hidden shadow-sm hover:shadow-zen"
     >
-      {/* ИСПРАВЛЕНИЕ: Используем indicatorColor */}
       <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${indicatorColor} opacity-70 group-hover:opacity-100 transition-opacity`}></div>
 
       <div className="flex justify-between items-start mb-3 pl-2">
@@ -119,4 +112,4 @@ export const ClientCard: React.FC<ClientCardProps> = ({ client, onClick, onRemov
       </div>
     </motion.div>
   );
-};
+});

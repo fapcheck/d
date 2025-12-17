@@ -12,7 +12,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Эффект матового стекла (The Zen Glass Effect) */
 .glass {
   @apply bg-[#161b22]/60 backdrop-blur-xl border border-white/[0.03];
 }
@@ -21,7 +20,6 @@ body {
   @apply hover:bg-[#1f2430]/80 hover:border-white/[0.08] transition-all duration-300;
 }
 
-/* Тонкий, эстетичный скроллбар */
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { 
@@ -30,7 +28,6 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: #444c56; }
 
-/* Убираем синюю обводку при клике */
 *:focus {
   outline: none;
 }
@@ -38,7 +35,6 @@ input:focus, textarea:focus {
   @apply ring-1 ring-primary/30 border-primary/30;
 }
 
-/* Плавный выбор текста */
 ::selection {
   background: rgba(130, 170, 255, 0.2);
   color: #fff;

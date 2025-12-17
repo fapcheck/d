@@ -1,22 +1,25 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Trash2, GripVertical, Pencil, X, Check } from 'lucide-react';
-
-import { PRIORITY_CONFIG, EFFORT_CONFIG } from '../types';
-import type { Task, Priority, Effort } from '../types';
+import { Trash2, GripVertical, Pencil, X, Check, Calendar, MessageCircle, Clock } from 'lucide-react';
+import { PRIORITY_CONFIG, EFFORT_CONFIG, DateUtils } from '../types';
+import type { Task, Priority, Effort, Comment } from '../types';
 
 interface SortableTaskItemProps {
   task: Task;
   onToggle: () => void;
   onDelete: () => void;
   onUpdateTitle: (newTitle: string) => void;
-  onUpdatePriority: (priority: Priority) => void; // Новый проп
-  onUpdateEffort: (effort: Effort) => void;       // Новый проп
+  onUpdatePriority: (priority: Priority) => void;
+  onUpdateEffort: (effort: Effort) => void;
+  onUpdateDueDate: (dueDate?: number) => void;
+  onAddComment: (text: string) => void;
+  onOpenComments: () => void;
 }
 
-export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({ 
-  task, onToggle, onDelete, onUpdateTitle, onUpdatePriority, onUpdateEffort 
+export const SortableTaskItem = React.memo<SortableTaskItemProps>(({
+  task, onToggle, onDelete, onUpdateTitle, onUpdatePriority, onUpdateEffort,
+  onUpdateDueDate, onAddComment, onOpenComments
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -49,7 +52,7 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
 
   const handleSave = () => {
       if (editTitle.trim()) {
-          onUpdateTitle(editTitle);
+          onUpdateTitle(editTitle.trim());
       } else {
           setEditTitle(task.title);
       }
@@ -66,6 +69,29 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
       if (e.key === 'Escape') handleCancel();
   };
 
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value) {
+      const timestamp = new Date(value).getTime();
+      onUpdateDueDate(timestamp);
+    } else {
+      onUpdateDueDate(undefined);
+    }
+  };
+
+  // Определяем статус даты для индикатора
+  const getDateStatus = () => {
+    if (!task.dueDate) return null;
+    if (DateUtils.isOverdue(task.dueDate) && !task.isDone) return 'overdue';
+    if (DateUtils.isToday(task.dueDate)) return 'today';
+    if (DateUtils.isTomorrow(task.dueDate)) return 'tomorrow';
+    if (DateUtils.isUpcoming(task.dueDate)) return 'upcoming';
+    return 'future';
+  };
+
+  const dateStatus = getDateStatus();
+  const dateDisplay = DateUtils.formatDueDate(task.dueDate);
+
   return (
     <div 
         ref={setNodeRef} 
@@ -75,6 +101,8 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
             border transition-all duration-200
             ${isDragging ? 'border-primary/50 bg-surface/90' : 'border-white/5 hover:border-white/10'}
             ${task.isDone ? 'opacity-50' : ''}
+            ${dateStatus === 'overdue' ? 'border-error/30 bg-error/5' : ''}
+            ${dateStatus === 'today' ? 'border-warning/30 bg-warning/5' : ''}
         `}
     >
       <div 
@@ -102,7 +130,6 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
         <div className="flex-1 min-w-0 mr-2">
           {isEditing ? (
              <div className="flex flex-col gap-2">
-                {/* Input для текста */}
                 <input 
                     ref={inputRef}
                     value={editTitle}
@@ -112,7 +139,6 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
                     className="bg-bg/50 text-white px-3 py-1.5 rounded-lg w-full outline-none border border-primary/50 text-lg shadow-inner"
                 />
                 
-                {/* Кнопки редактирования приоритета и усилий */}
                 <div className="flex items-center gap-3 mt-1" onMouseDown={(e) => e.preventDefault()}>
                      <div className="flex bg-bg/30 rounded-lg p-0.5 gap-0.5">
                         {(['high', 'normal', 'low'] as Priority[]).map(p => (
@@ -151,6 +177,16 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
                             );
                         })}
                     </div>
+
+                    <div className="w-px h-4 bg-white/10"></div>
+
+                    <input
+                      type="date"
+                      onChange={handleDateChange}
+                      value={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
+                      className="bg-bg/30 text-white text-xs px-2 py-1 rounded border border-white/10 focus:border-primary/50 outline-none"
+                      title="Дата выполнения"
+                    />
                 </div>
              </div>
           ) : (
@@ -165,13 +201,37 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
           
           {/* Мета-информация в режиме просмотра */}
           {!isEditing && (
-              <div className="flex gap-3 mt-1.5 opacity-60">
+              <div className="flex gap-3 mt-1.5 opacity-60 items-center flex-wrap">
                 <span className={`text-xs px-2 py-0.5 rounded bg-white/5 border border-white/5 ${PRIORITY_CONFIG[task.priority].color}`}>
                     {PRIORITY_CONFIG[task.priority].label}
                 </span>
                 <span className={`text-xs px-2 py-0.5 rounded bg-white/5 border border-white/5 ${EFFORT_CONFIG[task.effort].color}`}>
                     {EFFORT_CONFIG[task.effort].label}
                 </span>
+                
+                {/* НОВЫЙ: Индикатор даты */}
+                {task.dueDate && (
+                  <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded border ${
+                    dateStatus === 'overdue' ? 'bg-error/20 text-error border-error/30' :
+                    dateStatus === 'today' ? 'bg-warning/20 text-warning border-warning/30' :
+                    dateStatus === 'tomorrow' ? 'bg-success/20 text-success border-success/30' :
+                    'bg-white/5 text-secondary border-white/10'
+                  }`}>
+                    <Calendar size={10} />
+                    {dateDisplay}
+                  </div>
+                )}
+
+                {/* НОВЫЙ: Комментарии */}
+                {task.comments.length > 0 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onOpenComments(); }}
+                    className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-colors"
+                  >
+                    <MessageCircle size={10} />
+                    {task.comments.length}
+                  </button>
+                )}
               </div>
           )}
         </div>
@@ -205,4 +265,4 @@ export const SortableTaskItem: React.FC<SortableTaskItemProps> = ({
       </div>
     </div>
   );
-};
+});
