@@ -174,7 +174,7 @@ export const TimePredictionCard: React.FC<TimePredictionProps> = ({
                     borderRadius: '8px',
                     color: '#fff'
                   }}
-                  formatter={(value, name) => [
+                  formatter={(value: any, name: any) => [
                     name === 'tasks' ? `${value} задач` : `${value}%`,
                     name === 'tasks' ? 'Задач выполнено' : 'Уверенность'
                   ]}

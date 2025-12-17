@@ -42,12 +42,13 @@ export interface HealthTrend {
 export interface HistoryEntry {
   id: number;
   timestamp: number;
-  type: 'task_create' | 'task_complete' | 'task_delete' | 'task_update' | 'client_add' | 'client_remove';
+  // Добавил 'client_update'
+  type: 'task_create' | 'task_complete' | 'task_delete' | 'task_update' | 'client_add' | 'client_remove' | 'client_update';
   data: any;
   description: string;
   userId: string;
-  clientId?: number;
-  taskId?: number;
+  clientId?: number | string; // Разрешил строки
+  taskId?: number | string;   // Разрешил строки
 }
 
 export interface TimePrediction {
@@ -93,9 +94,9 @@ export interface OptimalSchedule {
 }
 
 export interface FocusSession {
-  id: number;
-  clientId: number;
-  taskId?: number;
+  id: number | string;       // Разрешил строки
+  clientId: number | string; // Разрешил строки
+  taskId?: number | string;  // Разрешил строки
   startTime: number;
   endTime?: number;
   duration: number; // в секундах
@@ -865,7 +866,8 @@ export const IntelligenceUtils = {
     // Рассчитываем среднее время на основе завершенных задач
     const avgHoursPerTaskType: Record<string, number> = {};
     completedTasks.forEach(task => {
-      const sessions = projectSessions.filter(s => s.taskId === task.id);
+      // Приводим ID к строке для сравнения, так как в типах мы теперь разрешили и строки и числа
+      const sessions = projectSessions.filter(s => String(s.taskId) === String(task.id));
       const totalHours = sessions.reduce((acc, s) => acc + (s.duration / 3600), 0);
       const key = `${task.priority}-${task.effort}`;
       avgHoursPerTaskType[key] = totalHours;

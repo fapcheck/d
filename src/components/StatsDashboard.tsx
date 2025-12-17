@@ -2,10 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   TrendingUp, Calendar, Target, Clock, Award, BarChart3, 
-  PieChart, Activity, Zap, Filter 
+  PieChart as LucidePieChart, Activity, Zap, Filter 
 } from 'lucide-react';
+// Добавил импорт Pie
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
-         BarChart, Bar, PieChart as RechartsPieChart, Cell } from 'recharts';
+         BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell } from 'recharts';
 import { AnalyticsUtils, DateUtils, PRIORITY_CONFIG, CHART_COLORS } from '../types';
 import type { Client, FocusSession, DailyStats, ProjectStats } from '../types';
 
@@ -249,13 +250,13 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
         {/* Распределение по приоритетам */}
         <div className="glass p-6 rounded-2xl border border-white/5">
           <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
-            <PieChart size={20} className="text-primary" />
+            <LucidePieChart size={20} className="text-primary" />
             По приоритетам
           </h3>
           
           <ResponsiveContainer width="100%" height={200}>
             <RechartsPieChart>
-              <RechartsPieChart
+              <Pie
                 data={priorityData}
                 cx="50%"
                 cy="50%"
@@ -266,7 +267,7 @@ export const StatsDashboard: React.FC<StatsDashboardProps> = ({
                 {priorityData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
-              </RechartsPieChart>
+              </Pie>
               <Tooltip 
                 contentStyle={{ 
                   backgroundColor: '#1f2937', 
