@@ -16,7 +16,11 @@
         "$APPLOCALDATA",
         "$APPLOCALDATA/**"
       ]
+<<<<<<< HEAD
     },
     "core:window:allow-set-always-on-top"
+=======
+    }
+>>>>>>> d1dcc54ebaa44411425dbe15528442ab526cb818
   ]
 }

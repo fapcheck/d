@@ -37,8 +37,6 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAchievementsOpen, setIsAchievementsOpen] = useState(false);
   const [sectionsOpen, setSectionsOpen] = useState({ high: true, normal: true, low: true });
-  
-  // Состояние для кнопки "Поверх всех окон"
   const [isPinned, setIsPinned] = useState(false);
 
   const [commentsModal, setCommentsModal] = useState<{
@@ -125,7 +123,6 @@ function App() {
     }
   };
 
-  // Функция переключения режима "Поверх всех окон"
   const togglePin = async () => {
     try {
       const newValue = !isPinned;
@@ -214,11 +211,10 @@ function App() {
                 </button>
             </div>
             
-            {/* Кнопка "Поверх всех окон" */}
             <button 
               onClick={togglePin}
               className={`glass hover:bg-white/10 p-3 rounded-xl transition-colors shadow-sm ${isPinned ? 'text-primary bg-primary/10' : 'text-secondary hover:text-white'}`}
-              title={isPinned ? "Открепить от верха" : "Закрепить поверх всех окон"}
+              title={isPinned ? "Открепить" : "Поверх всех окон"}
             >
               {isPinned ? <PinOff size={20} /> : <Pin size={20} />}
             </button>
@@ -262,55 +258,28 @@ function App() {
         <AnimatePresence mode="wait">
            {viewMode === 'dashboard' && !selectedClientId && (
             <motion.div key="clients-list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-12">
-              
               <QuickTaskBar clients={clients} onAddTask={actions.addTask} />
-
               <div>
                   <div className="flex items-center gap-4 mb-6 px-2">
                     <h2 className="text-sm font-bold uppercase tracking-widest text-secondary">Ваши клиенты</h2>
                     <div className="h-px bg-white/5 flex-1"></div>
-                    <button 
-                      onClick={() => setIsClientFormOpen(!isClientFormOpen)} 
-                        className={`p-2 rounded-full transition-all border border-transparent ${isClientFormOpen ? 'bg-error/10 text-error rotate-45 border-error/20' : 'glass hover:bg-white/10 text-secondary hover:text-white'}`}
-                    >
+                    <button onClick={() => setIsClientFormOpen(!isClientFormOpen)} className={`p-2 rounded-full transition-all border border-transparent ${isClientFormOpen ? 'bg-error/10 text-error rotate-45 border-error/20' : 'glass hover:bg-white/10 text-secondary hover:text-white'}`}>
                         {isClientFormOpen ? <Plus size={16} /> : <UserPlus size={16} />}
                     </button>
                   </div>
-                  
                   <AnimatePresence>
                     {isClientFormOpen && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-8">
                             <div className="glass p-5 rounded-2xl flex flex-col gap-4 max-w-2xl mx-auto shadow-zen">
                                 <div className="flex gap-3 w-full">
-                                    <input 
-                                        type="text" 
-                                        value={newClientName} 
-                                        onChange={(e) => setNewClientName(e.target.value)} 
-                                        onKeyDown={(e) => e.key === 'Enter' && handleAddClient()} 
-                                        placeholder="Название проекта или имя..." 
-                                        className="flex-1 bg-black/20 text-white px-4 py-3 rounded-xl outline-none focus:ring-1 focus:ring-primary/50 border border-white/5 placeholder-secondary/40" 
-                                        autoFocus 
-                                    />
-                                    <button onClick={handleAddClient} className="bg-primary/80 hover:bg-primary text-white px-6 rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary/20">
-                                        Создать
-                                    </button>
+                                    <input type="text" value={newClientName} onChange={(e) => setNewClientName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddClient()} placeholder="Название проекта..." className="flex-1 bg-black/20 text-white px-4 py-3 rounded-xl outline-none focus:ring-1 focus:ring-primary/50 border border-white/5" autoFocus />
+                                    <button onClick={handleAddClient} className="bg-primary/80 hover:bg-primary text-white px-6 rounded-xl font-bold text-sm">Создать</button>
                                 </div>
-                                
                                 <div className="flex items-center gap-4 px-1">
-                                    <span className="text-xs text-secondary font-medium uppercase tracking-wide">Приоритет:</span>
+                                    <span className="text-xs text-secondary font-medium uppercase">Приоритет:</span>
                                     <div className="flex bg-black/20 rounded-lg p-1 gap-1 border border-white/5">
                                         {(['high', 'normal', 'low'] as Priority[]).map(p => (
-                                            <button
-                                                key={p}
-                                                onClick={() => setNewClientPriority(p)}
-                                                className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase transition-all tracking-wider ${
-                                                    newClientPriority === p 
-                                                    ? `${PRIORITY_CONFIG[p].bg} ${PRIORITY_CONFIG[p].color} shadow-sm border border-white/5` 
-                                                    : 'text-secondary hover:text-white hover:bg-white/5'
-                                                }`}
-                                            >
-                                                {PRIORITY_CONFIG[p].label}
-                                            </button>
+                                            <button key={p} onClick={() => setNewClientPriority(p)} className={`px-4 py-1.5 rounded-md text-[10px] font-bold uppercase ${newClientPriority === p ? `${PRIORITY_CONFIG[p].bg} ${PRIORITY_CONFIG[p].color} shadow-sm border border-white/5` : 'text-secondary hover:text-white'}`}>{PRIORITY_CONFIG[p].label}</button>
                                         ))}
                                     </div>
                                 </div>
@@ -318,26 +287,10 @@ function App() {
                         </motion.div>
                     )}
                   </AnimatePresence>
-                  
-                  {clients.length === 0 ? (
-                    <div className="text-center py-24 text-secondary/40">
-                        <FolderOpen size={64} className="mx-auto mb-6 opacity-10" strokeWidth={1} />
-                        <p className="font-light tracking-wide">Пространство пусто. Создайте первый проект.</p>
-                    </div> 
-                  ) : (
+                  {clients.length === 0 ? <div className="text-center py-24 text-secondary/40"><FolderOpen size={64} className="mx-auto mb-6 opacity-10" strokeWidth={1} /><p className="font-light tracking-wide">Пространство пусто.</p></div> : (
                     <div className="flex flex-col gap-8">
                         {(['high', 'normal', 'low'] as Priority[]).map(type => (
-                            <ClientSection 
-                                key={type}
-                                type={type} 
-                                title={type === 'high' ? 'Высокий приоритет' : type === 'normal' ? 'Обычный приоритет' : 'Низкий приоритет'} 
-                                items={groupedClients[type]} 
-                                isOpen={sectionsOpen[type]}
-                                onToggle={() => setSectionsOpen(p => ({...p, [type]: !p[type]}))}
-                                onSelectClient={(id) => { setSelectedClientId(id); setClientTab('active'); }}
-                                onRemoveClient={actions.removeClient}
-                                onUpdatePriority={actions.updateClientPriority}
-                            />
+                            <ClientSection key={type} type={type} title={type === 'high' ? 'Высокий приоритет' : type === 'normal' ? 'Обычный приоритет' : 'Низкий приоритет'} items={groupedClients[type]} isOpen={sectionsOpen[type]} onToggle={() => setSectionsOpen(p => ({...p, [type]: !p[type]}))} onSelectClient={(id) => { setSelectedClientId(id); setClientTab('active'); }} onRemoveClient={actions.removeClient} onUpdatePriority={actions.updateClientPriority} />
                         ))}
                     </div>
                   )}
@@ -349,188 +302,51 @@ function App() {
             <motion.div key="client-detail" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="max-w-3xl mx-auto w-full">
                <div className="flex items-end justify-between mb-8 pb-4 border-b border-white/5">
                  <div>
-                    <div className={`text-xs font-bold uppercase tracking-widest mb-2 ${PRIORITY_CONFIG[selectedClient.priority].color}`}>
-                        {PRIORITY_CONFIG[selectedClient.priority].label}
-                    </div>
+                    <div className={`text-xs font-bold uppercase tracking-widest mb-2 ${PRIORITY_CONFIG[selectedClient.priority].color}`}>{PRIORITY_CONFIG[selectedClient.priority].label}</div>
                     <h2 className="text-4xl font-bold text-white tracking-tight">{selectedClient.name}</h2>
                  </div>
                </div>
-              
               <div className="flex glass p-1 rounded-xl mb-8 shadow-sm">
                 {(['active', 'notes', 'archive'] as ClientTab[]).map(tab => (
-                   <button 
-                        key={tab} 
-                        onClick={() => setClientTab(tab)} 
-                        className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${clientTab === tab ? 'bg-white/10 text-white shadow-inner' : 'text-secondary hover:text-white hover:bg-white/5'}`}
-                   >
-                        {tab === 'active' ? 'Задачи' : tab === 'notes' ? 'Заметки' : 'Архив'}
-                   </button>
+                   <button key={tab} onClick={() => setClientTab(tab)} className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${clientTab === tab ? 'bg-white/10 text-white shadow-inner' : 'text-secondary hover:text-white hover:bg-white/5'}`}>{tab === 'active' ? 'Задачи' : tab === 'notes' ? 'Заметки' : 'Архив'}</button>
                 ))}
               </div>
-
               <AnimatePresence mode="wait">
                 {clientTab === 'active' && (
                   <motion.div key="active-tasks" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
-                    
                     <div className="glass p-5 rounded-2xl shadow-zen mb-8 group focus-within:ring-1 focus-within:ring-primary/30 transition-all">
                         <div className="flex gap-4 w-full mb-4">
-                            <input 
-                                type="text" 
-                                placeholder="Новая задача..." 
-                                value={newTaskTitle} 
-                                onChange={(e) => setNewTaskTitle(e.target.value)} 
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddTaskInternal()} 
-                                className="flex-1 bg-transparent text-white text-xl outline-none placeholder-secondary/30 border-none"
-                            />
-                            <button 
-                                onClick={handleAddTaskInternal} 
-                                className="w-10 h-10 flex items-center justify-center bg-primary/10 text-primary rounded-xl hover:bg-primary hover:text-bg transition-all"
-                            >
-                                <Plus size={20} />
-                            </button>
-                        </div>
-                        
-                        <div className="flex items-center gap-6 border-t border-white/5 pt-4">
-                            <div className="flex gap-2 items-center">
-                                <span className="text-[10px] text-secondary font-bold uppercase mr-1">Важность</span>
-                                {(['high', 'normal', 'low'] as Priority[]).map(p => (
-                                    <button
-                                        key={p}
-                                        onClick={() => setNewTaskPriority(p)}
-                                        className={`w-4 h-4 rounded-full transition-all flex items-center justify-center ${
-                                            newTaskPriority === p 
-                                            ? `ring-2 ring-white ring-opacity-50 scale-110 ${PRIORITY_CONFIG[p].bg.replace('/20', '')}` 
-                                            : 'bg-surface hover:bg-white/20 border border-white/10'
-                                        }`}
-                                        title={PRIORITY_CONFIG[p].label}
-                                    />
-                                ))}
-                            </div>
-
-                            <div className="w-px h-4 bg-white/10"></div>
-
-                            <div className="flex bg-white/5 rounded-lg p-0.5 gap-0.5">
-                                {(['quick', 'medium', 'long'] as Effort[]).map(e => {
-                                    const Icon = EFFORT_CONFIG[e].icon;
-                                    return (
-                                        <button
-                                            key={e}
-                                            onClick={() => setNewTaskEffort(e)}
-                                            className={`p-1.5 rounded-md transition-all flex items-center gap-1 ${
-                                                newTaskEffort === e 
-                                                ? 'bg-white/10 text-white shadow-sm' 
-                                                : 'text-secondary hover:text-white hover:bg-white/5'
-                                            }`}
-                                            title={EFFORT_CONFIG[e].label}
-                                        >
-                                            <Icon size={14} className={newTaskEffort === e ? EFFORT_CONFIG[e].color : ''} />
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            <input type="text" placeholder="Новая задача..." value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddTaskInternal()} className="flex-1 bg-transparent text-white text-xl outline-none placeholder-secondary/30 border-none" />
+                            <button onClick={handleAddTaskInternal} className="w-10 h-10 flex items-center justify-center bg-primary/10 text-primary rounded-xl hover:bg-primary transition-all"><Plus size={20} /></button>
                         </div>
                     </div>
-
                     <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
                         <SortableContext items={activeTasks} strategy={verticalListSortingStrategy}>
                            <div className="space-y-3 pb-20">
-                                {activeTasks.length === 0 ? (
-                                    <div className="text-center py-16 text-secondary/30 border border-dashed border-white/5 rounded-2xl glass">
-                                        <div className="text-sm font-medium">Нет активных задач</div>
-                                        <div className="text-xs mt-1">Отличное время для кофе</div>
-                                    </div> 
-                                ) : (
-                                    activeTasks.map(task => (
-                                      <SortableTaskItem 
-                                            key={task.id} 
-                                            task={task} 
-                                            onToggle={() => actions.toggleTask(selectedClient.id, task.id)}
-                                            onDelete={() => actions.deleteTask(selectedClient.id, task.id)}
-                                            onUpdateTitle={(title) => actions.updateTaskTitle(selectedClient.id, task.id, title)}
-                                            onUpdatePriority={(priority) => actions.updateTaskPriority(selectedClient.id, task.id, priority)}
-                                            onUpdateEffort={(effort) => actions.updateTaskEffort(selectedClient.id, task.id, effort)}
-                                            onUpdateDueDate={(dueDate) => actions.updateTaskDueDate(selectedClient.id, task.id, dueDate)}
-                                            onAddComment={(text) => actions.addTaskComment(selectedClient.id, task.id, text)}
-                                            onOpenComments={() => handleOpenComments(task.id, task.title)}
-                                      />
-                                    ))
-                                )}
+                                {activeTasks.length === 0 ? <div className="text-center py-16 text-secondary/30 border border-dashed border-white/5 rounded-2xl glass"><div className="text-sm font-medium">Нет активных задач</div></div> : activeTasks.map(task => (
+                                      <SortableTaskItem key={task.id} task={task} onToggle={() => actions.toggleTask(selectedClient.id, task.id)} onDelete={() => actions.deleteTask(selectedClient.id, task.id)} onUpdateTitle={(title) => actions.updateTaskTitle(selectedClient.id, task.id, title)} onUpdatePriority={(priority) => actions.updateTaskPriority(selectedClient.id, task.id, priority)} onUpdateEffort={(effort) => actions.updateTaskEffort(selectedClient.id, task.id, effort)} onUpdateDueDate={(dueDate) => actions.updateTaskDueDate(selectedClient.id, task.id, dueDate)} onAddComment={(text) => actions.addTaskComment(selectedClient.id, task.id, text)} onOpenComments={() => handleOpenComments(task.id, task.title)} />
+                                ))}
                            </div>
                         </SortableContext>
                     </DndContext>
                   </motion.div>
                 )}
-
                 {clientTab === 'notes' && (
-                  <motion.div key="notes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-                      <div className="glass p-6 rounded-2xl shadow-zen relative group">
-                        <textarea 
-                            className="w-full h-[500px] bg-transparent text-gray-300 text-lg leading-relaxed outline-none resize-none placeholder-secondary/20 scrollbar-thin font-light" 
-                            placeholder="Пространство для мыслей..." 
-                            value={selectedClient.notes} 
-                            onChange={(e) => actions.updateClientNotes(selectedClient.id, e.target.value)}
-                        />
-                        <div className="absolute bottom-4 right-4 text-[10px] text-secondary opacity-0 group-hover:opacity-40 transition-opacity uppercase tracking-widest">
-                            Saved locally
-                        </div>
-                    </div>
-                  </motion.div>
+                  <motion.div key="notes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}><div className="glass p-6 rounded-2xl shadow-zen relative group"><textarea className="w-full h-[500px] bg-transparent text-gray-300 text-lg leading-relaxed outline-none resize-none placeholder-secondary/20 scrollbar-thin font-light" placeholder="Пространство для мыслей..." value={selectedClient.notes} onChange={(e) => actions.updateClientNotes(selectedClient.id, e.target.value)} /><div className="absolute bottom-4 right-4 text-[10px] text-secondary opacity-0 group-hover:opacity-40 transition-opacity uppercase tracking-widest">Saved locally</div></div></motion.div>
                 )}
-
                 {clientTab === 'archive' && (
-                  <motion.div key="archive" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
-                     <div className="flex justify-end">
-                         <button 
-                            onClick={copyReport} 
-                            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-lg ${copiedId ? 'bg-success/20 text-success border border-success/30' : 'glass hover:bg-white/10 text-secondary'}`}
-                         >
-                             {copiedId ? <Check size={14}/> : <Copy size={14}/>} 
-                             {copiedId ? 'Скопировано' : 'Копировать отчет'}
-                         </button>
-                     </div>
-                     <div className="space-y-2 pb-10">
-                        {selectedClient.tasks.filter(t => t.isDone).length === 0 && (
-                            <div className="text-center py-20 text-secondary/30 font-light">Архив пуст</div>
-                        )}
-                        {selectedClient.tasks.filter(t => t.isDone).map(task => (
-                             <div key={task.id} className="glass p-4 rounded-xl flex items-center gap-4 group hover:bg-white/[0.03] transition-colors border border-transparent hover:border-white/5">
-                                 <div className="text-success/50"><CheckCircle2 size={18} /></div>
-                                 <div className="flex-1 text-secondary line-through decoration-white/10 text-sm">
-                                   {task.title}
-                                   {task.pointsEarned && task.pointsEarned > 0 && (
-                                     <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-1 rounded">
-                                       +{task.pointsEarned} очков
-                                     </span>
-                                   )}
-                                 </div>
-                                 <button onClick={() => actions.toggleTask(selectedClient.id, task.id)} className="text-xs text-secondary hover:text-white opacity-0 group-hover:opacity-100 underline transition-opacity">
-                                    Вернуть
-                                 </button>
-                                 <button onClick={() => actions.deleteTask(selectedClient.id, task.id)} className="text-secondary hover:text-error opacity-0 group-hover:opacity-100 transition-opacity ml-4 p-2">
-                                    <Trash2 size={16} />
-                                 </button>
-                             </div>
-                         ))}
-                     </div>
-                  </motion.div>
+                  <motion.div key="archive" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6"><div className="flex justify-end"><button onClick={copyReport} className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-lg ${copiedId ? 'bg-success/20 text-success border border-success/30' : 'glass hover:bg-white/10 text-secondary'}`}>{copiedId ? <Check size={14}/> : <Copy size={14}/>} {copiedId ? 'Скопировано' : 'Копировать отчет'}</button></div><div className="space-y-2 pb-10">{selectedClient.tasks.filter(t => t.isDone).length === 0 ? <div className="text-center py-20 text-secondary/30 font-light">Архив пуст</div> : selectedClient.tasks.filter(t => t.isDone).map(task => (<div key={task.id} className="glass p-4 rounded-xl flex items-center gap-4 group hover:bg-white/[0.03] transition-colors border border-transparent hover:border-white/5"><div className="text-success/50"><CheckCircle2 size={18} /></div><div className="flex-1 text-secondary line-through decoration-white/10 text-sm">{task.title}{task.pointsEarned && task.pointsEarned > 0 && (<span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-1 rounded">+{task.pointsEarned} очков</span>)}</div><button onClick={() => actions.toggleTask(selectedClient.id, task.id)} className="text-xs text-secondary hover:text-white opacity-0 group-hover:opacity-100 underline transition-opacity">Вернуть</button><button onClick={() => actions.deleteTask(selectedClient.id, task.id)} className="text-secondary hover:text-error opacity-0 group-hover:opacity-100 transition-opacity ml-4 p-2"><Trash2 size={16} /></button></div>))}</div></motion.div>
                 )}
               </AnimatePresence>
             </motion.div>
           )}
 
           {viewMode === 'analytics' && (
-            <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
-              <StatsDashboard 
-                clients={clients} 
-                focusSessions={userProgress.focusSessions}
-              />
-            </motion.div>
+            <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8"><StatsDashboard clients={clients} focusSessions={userProgress.focusSessions} /></motion.div>
           )}
 
           {viewMode === 'focus' && (
-            <motion.div key="focus-mode" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}>
-              <FocusView clients={clients} onToggleTask={actions.toggleTask} />
-            </motion.div>
+            <motion.div key="focus-mode" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}><FocusView clients={clients} onToggleTask={actions.toggleTask} /></motion.div>
           )}
         </AnimatePresence>
       </main>
