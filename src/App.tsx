@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, LayoutDashboard, ArrowLeft, Clock, UserPlus, Focus, 
   FolderOpen, Copy, Check, CheckCircle2, Trash2, 
-  Settings, Trophy, BarChart3, Pin, PinOff
+  Settings, Trophy, BarChart3, Pin, PinOff, AlertTriangle, RefreshCw
 } from 'lucide-react';
 import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent } from '@dnd-kit/core';
@@ -11,23 +11,94 @@ import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrate
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
 import { useZenData } from './hooks/useZenData';
-import { FocusView } from './components/FocusView';
 import { SortableTaskItem } from './components/SortableTaskItem';
 import { SettingsModal } from './components/SettingsModal';
 import { QuickTaskBar } from './components/QuickTaskBar';
 import { CommentsModal } from './components/CommentsModal';
-import { AchievementsModal } from './components/AchievementsModal';
 import { LevelProgress } from './components/LevelProgress';
 import { NotificationToast } from './components/NotificationToast';
-import { StatsDashboard } from './components/StatsDashboard';
 import { HistoryPanel } from './components/HistoryPanel';
 import { ClientSection } from './components/ClientSection';
-import { PRIORITY_CONFIG, EFFORT_CONFIG } from './types';
+import { PRIORITY_CONFIG } from './types';
 import type { Priority, Effort } from './types';
+
+// --- Lazy Loading for Heavy Components ---
+// Optimizes startup time by loading these only when needed
+const FocusView = lazy(() => import('./components/FocusView').then(module => ({ default: module.FocusView })));
+const StatsDashboard = lazy(() => import('./components/StatsDashboard').then(module => ({ default: module.StatsDashboard })));
+const AchievementsModal = lazy(() => import('./components/AchievementsModal').then(module => ({ default: module.AchievementsModal })));
+
+// --- Error Boundary Component ---
+// Prevents white screen crashes by catching errors in the component tree
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  handleReset = () => {
+    // Hard reset storage if deep corruption occurs
+    if (confirm("Reset application data? This cannot be undone.")) {
+        localStorage.clear();
+        window.location.reload();
+    }
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-8 text-center">
+            <div className="bg-surface border border-error/20 p-8 rounded-3xl max-w-md shadow-2xl">
+                <AlertTriangle size={48} className="text-error mx-auto mb-4" />
+                <h1 className="text-2xl font-bold text-white mb-2">Meditation Broken</h1>
+                <p className="text-secondary mb-6 text-sm">
+                    An unexpected error disturbed the flow.<br/>
+                    <span className="font-mono text-xs opacity-50 mt-2 block">{this.state.error?.message}</span>
+                </p>
+                <div className="flex gap-4 justify-center">
+                    <button 
+                        onClick={() => window.location.reload()} 
+                        className="px-6 py-2 bg-primary text-bg rounded-xl font-bold hover:bg-white transition-colors flex items-center gap-2"
+                    >
+                        <RefreshCw size={16} /> Reload
+                    </button>
+                    <button 
+                        onClick={this.handleReset}
+                        className="px-6 py-2 glass text-error hover:bg-error/10 rounded-xl font-bold transition-colors"
+                    >
+                        Reset Data
+                    </button>
+                </div>
+            </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// --- Loading Spinner ---
+const LoadingFallback = () => (
+    <div className="w-full h-96 flex items-center justify-center text-secondary">
+        <motion.div 
+            animate={{ rotate: 360 }} 
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+        >
+            <Clock size={32} className="opacity-50" />
+        </motion.div>
+    </div>
+);
 
 type ClientTab = 'active' | 'archive' | 'notes';
 
-function App() {
+function AppContent() {
   const { clients, isLoaded, settings, userProgress, newAchievement, actions } = useZenData();
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'dashboard' | 'focus' | 'analytics'>('dashboard');
@@ -50,6 +121,32 @@ function App() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>('normal');
   const [newTaskEffort, setNewTaskEffort] = useState<Effort>('quick');
+
+  // --- Keyboard Shortcuts (Cmd+K) ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            // Switch to dashboard
+            setViewMode('dashboard');
+            setSelectedClientId(null);
+            
+            // Focus the quick task input if available
+            // We use a small timeout to allow React to render the dashboard first
+            setTimeout(() => {
+                const input = document.querySelector('input[placeholder="Суть задачи..."]') as HTMLInputElement;
+                if (input) {
+                    input.focus();
+                    // Optional: Visual cue
+                    input.parentElement?.classList.add('ring-2', 'ring-primary');
+                    setTimeout(() => input.parentElement?.classList.remove('ring-2', 'ring-primary'), 500);
+                }
+            }, 50);
+        }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -153,11 +250,13 @@ function App() {
         onExport={actions.exportData}
       />
 
-      <AchievementsModal
-        isOpen={isAchievementsOpen}
-        onClose={() => setIsAchievementsOpen(false)}
-        achievements={userProgress.achievements}
-      />
+      <Suspense fallback={null}>
+          <AchievementsModal
+            isOpen={isAchievementsOpen}
+            onClose={() => setIsAchievementsOpen(false)}
+            achievements={userProgress.achievements}
+          />
+      </Suspense>
 
       {selectedClient && commentsModal.taskId && (
         <CommentsModal
@@ -256,7 +355,7 @@ function App() {
 
       <main className="w-full max-w-5xl relative">
         <AnimatePresence mode="wait">
-           {viewMode === 'dashboard' && !selectedClientId && (
+          {viewMode === 'dashboard' && !selectedClientId && (
             <motion.div key="clients-list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-12">
               <QuickTaskBar clients={clients} onAddTask={actions.addTask} />
               <div>
@@ -325,7 +424,7 @@ function App() {
                            <div className="space-y-3 pb-20">
                                 {activeTasks.length === 0 ? <div className="text-center py-16 text-secondary/30 border border-dashed border-white/5 rounded-2xl glass"><div className="text-sm font-medium">Нет активных задач</div></div> : activeTasks.map(task => (
                                       <SortableTaskItem key={task.id} task={task} onToggle={() => actions.toggleTask(selectedClient.id, task.id)} onDelete={() => actions.deleteTask(selectedClient.id, task.id)} onUpdateTitle={(title) => actions.updateTaskTitle(selectedClient.id, task.id, title)} onUpdatePriority={(priority) => actions.updateTaskPriority(selectedClient.id, task.id, priority)} onUpdateEffort={(effort) => actions.updateTaskEffort(selectedClient.id, task.id, effort)} onUpdateDueDate={(dueDate) => actions.updateTaskDueDate(selectedClient.id, task.id, dueDate)} onAddComment={(text) => actions.addTaskComment(selectedClient.id, task.id, text)} onOpenComments={() => handleOpenComments(task.id, task.title)} />
-                                ))}
+                                 ))}
                            </div>
                         </SortableContext>
                     </DndContext>
@@ -342,11 +441,19 @@ function App() {
           )}
 
           {viewMode === 'analytics' && (
-            <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8"><StatsDashboard clients={clients} focusSessions={userProgress.focusSessions} /></motion.div>
+            <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
+                <Suspense fallback={<LoadingFallback />}>
+                    <StatsDashboard clients={clients} focusSessions={userProgress.focusSessions} />
+                </Suspense>
+            </motion.div>
           )}
 
           {viewMode === 'focus' && (
-            <motion.div key="focus-mode" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}><FocusView clients={clients} onToggleTask={actions.toggleTask} /></motion.div>
+            <motion.div key="focus-mode" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.05 }}>
+                <Suspense fallback={<LoadingFallback />}>
+                    <FocusView clients={clients} onToggleTask={actions.toggleTask} />
+                </Suspense>
+            </motion.div>
           )}
         </AnimatePresence>
       </main>
@@ -354,4 +461,11 @@ function App() {
   );
 }
 
-export default App;
+// Wrapper to ensure ErrorBoundary catches errors in the logic component
+export default function App() {
+    return (
+        <ErrorBoundary>
+            <AppContent />
+        </ErrorBoundary>
+    );
+}
