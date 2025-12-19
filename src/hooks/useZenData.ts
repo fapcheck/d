@@ -2,118 +2,50 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { BaseDirectory, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { arrayMove } from '@dnd-kit/sortable';
-import { 
-  DEFAULT_SETTINGS, DB_FILENAME, GamificationUtils, ACHIEVEMENTS, DateUtils
+import { DEFAULT_SETTINGS, DB_FILENAME, ACHIEVEMENTS } from '../constants';
+import { DateUtils, GamificationUtils, AnalyticsUtils } from '../utils';
+import type {
+  Client, Task, Priority, Effort, AppSettings, Comment, UserProgress, Achievement, UserStats,
+  FocusSession, HistoryEntry, HistoryData
 } from '../types';
-import type { 
-  Client, Task, Priority, Effort, AppSettings, Comment, UserProgress, Achievement, UserStats, 
-  FocusSession, HistoryEntry
-} from '../types';
+import { useAudioEngine } from './useAudioEngine';
+import { useConfetti } from './useConfetti';
 
-// --- Helper: Audio Engine ---
-const useAudioEngine = (enabled: boolean) => {
-  const audioContextRef = useRef<AudioContext | null>(null);
-
-  const initCtx = useCallback(() => {
-    if (!audioContextRef.current) {
-      const CtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      audioContextRef.current = new CtxClass();
-    }
-    if (audioContextRef.current?.state === 'suspended') {
-      audioContextRef.current.resume();
-    }
-    return audioContextRef.current;
-  }, []);
-
-  const playSuccess = useCallback(() => {
-    if (!enabled) return;
-    try {
-      const ctx = initCtx();
-      if (!ctx) return;
-
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(800, ctx.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.15);
-      
-      gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
-      
-      oscillator.start();
-      oscillator.stop(ctx.currentTime + 0.15);
-    } catch (e) {
-      console.error("Audio error", e);
-    }
-  }, [enabled, initCtx]);
-
-  const playAchievement = useCallback(() => {
-    if (!enabled) return;
-    try {
-      const ctx = initCtx();
-      if (!ctx) return;
-
-      const notes = [523, 659, 784, 1047];
-      notes.forEach((freq, index) => {
-        const oscillator = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(freq, ctx.currentTime);
-        
-        gainNode.gain.setValueAtTime(0, ctx.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0.1, ctx.currentTime + 0.01);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-        
-        oscillator.start(ctx.currentTime + index * 0.1);
-        oscillator.stop(ctx.currentTime + index * 0.1 + 0.3);
-      });
-    } catch (e) {
-      console.error("Achievement sound error", e);
-    }
-  }, [enabled, initCtx]);
-
-  return { playSuccess, playAchievement };
-};
 
 // --- Helper: Type Guards & Normalization ---
-const isRawTask = (t: any): t is Task => {
+const isRawTask = (t: unknown): t is Task => {
+  if (typeof t !== 'object' || t === null) return false;
+  const obj = t as Record<string, unknown>;
   return (
-    typeof t?.id === 'number' &&
-    typeof t?.title === 'string' &&
-    typeof t?.isDone === 'boolean'
+    typeof obj.id === 'number' &&
+    typeof obj.title === 'string' &&
+    typeof obj.isDone === 'boolean'
   );
 };
 
-const normalizeClient = (v: any): Client | null => {
-  if (typeof v !== 'object' || v === null || typeof v.id !== 'number' || typeof v.name !== 'string') return null;
-  
-  const tasks = Array.isArray(v.tasks) 
-    ? v.tasks.filter(isRawTask).map((t: any) => ({
-        ...t,
-        comments: Array.isArray(t.comments) ? t.comments : [],
-        dueDate: t.dueDate || undefined,
-        pointsEarned: t.pointsEarned || 0,
-        timeSpent: t.timeSpent || 0,
-        predictedTime: t.predictedTime || 0
-      })) 
-    : [];
+const normalizeClient = (v: unknown): Client | null => {
+  if (typeof v !== 'object' || v === null) return null;
+  const obj = v as Record<string, unknown>;
+  if (typeof obj.id !== 'number' || typeof obj.name !== 'string') return null;
+
+  const rawTasks = Array.isArray(obj.tasks) ? obj.tasks : [];
+  const tasks = rawTasks.filter(isRawTask).map((t: Task) => ({
+    ...t,
+    comments: Array.isArray(t.comments) ? t.comments : [],
+    dueDate: t.dueDate || undefined,
+    pointsEarned: t.pointsEarned || 0,
+    timeSpent: t.timeSpent || 0,
+    predictedTime: t.predictedTime || 0
+  }));
 
   return {
-    id: v.id,
-    name: v.name,
-    priority: ['high', 'normal', 'low'].includes(v.priority) ? v.priority : 'normal',
-    notes: v.notes || '',
+    id: obj.id,
+    name: obj.name,
+    priority: (['high', 'normal', 'low'] as const).includes(obj.priority as Priority) ? (obj.priority as Priority) : 'normal',
+    notes: typeof obj.notes === 'string' ? obj.notes : '',
     tasks,
-    createdAt: v.createdAt || Date.now(),
-    targetCompletionDate: v.targetCompletionDate || undefined
+    createdAt: typeof obj.createdAt === 'number' ? obj.createdAt : Date.now(),
+    targetCompletionDate: typeof obj.targetCompletionDate === 'number' ? obj.targetCompletionDate : undefined
   };
 };
 
@@ -142,7 +74,7 @@ const calculateUserStats = (clients: Client[], focusSessions: FocusSession[]): U
 
   let currentStreak = 0;
   const dates = Object.keys(tasksByDate).filter(k => !k.endsWith('_perfect')).sort().reverse();
-  
+
   for (let i = 0; i < dates.length; i++) {
     const d = new Date(dates[i]);
     const expected = new Date(today);
@@ -171,8 +103,8 @@ const calculateUserStats = (clients: Client[], focusSessions: FocusSession[]): U
 
   const totalFocusTime = focusSessions.reduce((acc, s) => acc + s.duration, 0) / 60;
   const completedSessions = focusSessions.filter(s => s.wasCompleted);
-  const avgSessionDuration = completedSessions.length > 0 
-    ? completedSessions.reduce((acc, s) => acc + s.duration, 0) / completedSessions.length / 60 
+  const avgSessionDuration = completedSessions.length > 0
+    ? completedSessions.reduce((acc, s) => acc + s.duration, 0) / completedSessions.length / 60
     : 0;
 
   const hourPerformance = new Array(24).fill(0);
@@ -203,15 +135,27 @@ export function useZenData() {
   const [clients, setClients] = useState<Client[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isLoaded, setIsLoaded] = useState(false);
-  
+
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  
+
+  // OPTIMIZATION: Refs for stable callbacks
+  const clientsRef = useRef(clients);
+  const settingsRef = useRef(settings);
+  const historyRef = useRef(history);
+  const historyIndexRef = useRef(historyIndex);
+
+  useEffect(() => { clientsRef.current = clients; }, [clients]);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+  useEffect(() => { historyRef.current = history; }, [history]);
+  useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
+
   const [focusSessions, setFocusSessions] = useState<FocusSession[]>([]);
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
-  
+
   const prevUnlockedIds = useRef<Set<string>>(new Set());
-  const { playSuccess, playAchievement } = useAudioEngine(settings.soundEnabled);
+  const { playSuccess, playAchievement, playAmbient, stopAmbient, isAmbientPlaying } = useAudioEngine(settings.soundEnabled);
+  const { fireTaskComplete, fireAchievement } = useConfetti();
 
   const isSaving = useRef(false);
   const saveQueue = useRef<Client[] | null>(null);
@@ -226,7 +170,7 @@ export function useZenData() {
         let loadedClients: Client[] = [];
         try {
           await mkdir('', { baseDir: BaseDirectory.AppLocalData, recursive: true });
-          
+
           if (await exists(DB_FILENAME, { baseDir: BaseDirectory.AppLocalData })) {
             const content = await readTextFile(DB_FILENAME, { baseDir: BaseDirectory.AppLocalData });
             const parsed = JSON.parse(content);
@@ -238,7 +182,7 @@ export function useZenData() {
           console.warn('FS Access failed, falling back to localStorage', fsErr);
           const local = localStorage.getItem('zen_backup_web');
           if (local) {
-             loadedClients = (JSON.parse(local) as any[]).map(normalizeClient).filter(Boolean) as Client[];
+            loadedClients = (JSON.parse(local) as any[]).map(normalizeClient).filter(Boolean) as Client[];
           }
         }
 
@@ -298,7 +242,7 @@ export function useZenData() {
     if (!isLoaded) {
       return {
         totalPoints: 0, level: 1, currentLevelPoints: 0, nextLevelPoints: 100,
-        achievements: ACHIEVEMENTS, focusSessions: [], 
+        achievements: ACHIEVEMENTS, focusSessions: [],
         stats: calculateUserStats([], []), history: [], timePredictions: [],
         productivityHealth: {} as any
       };
@@ -306,7 +250,7 @@ export function useZenData() {
 
     const stats = calculateUserStats(clients, focusSessions);
     const derivedAchievements = GamificationUtils.checkAchievements(stats, ACHIEVEMENTS);
-    const totalPoints = clients.reduce((acc, c) => 
+    const totalPoints = clients.reduce((acc, c) =>
       acc + c.tasks.reduce((sum, t) => sum + (t.isDone ? (t.pointsEarned || 0) : 0), 0), 0
     );
     const levelInfo = GamificationUtils.getLevelByPoints(totalPoints);
@@ -327,7 +271,7 @@ export function useZenData() {
         level: stats.consistencyScore > 80 ? 'excellent' : 'good',
         factors: [],
         recommendations: [],
-        trends: { direction: 'stable', change: 0, period: 'week', prediction: { nextWeek: 0, confidence: 0 }}
+        trends: { direction: 'stable', change: 0, period: 'week', prediction: { nextWeek: 0, confidence: 0 } }
       }
     };
   }, [clients, focusSessions, isLoaded, history]);
@@ -336,18 +280,19 @@ export function useZenData() {
   useEffect(() => {
     if (!isLoaded) return;
     if (prevUnlockedIds.current.size === 0) {
-        userProgress.achievements.forEach(a => {
-            if (a.unlockedAt) prevUnlockedIds.current.add(a.id);
-        });
-        return;
+      userProgress.achievements.forEach(a => {
+        if (a.unlockedAt) prevUnlockedIds.current.add(a.id);
+      });
+      return;
     }
-    const newUnlock = userProgress.achievements.find(a => 
-        a.unlockedAt && !prevUnlockedIds.current.has(a.id)
+    const newUnlock = userProgress.achievements.find(a =>
+      a.unlockedAt && !prevUnlockedIds.current.has(a.id)
     );
     if (newUnlock) {
       prevUnlockedIds.current.add(newUnlock.id);
       setNewAchievement(newUnlock);
       playAchievement();
+      fireAchievement();
     }
   }, [userProgress.achievements, isLoaded, playAchievement]);
 
@@ -366,7 +311,7 @@ export function useZenData() {
     } catch (e) { console.error("Notification error", e); }
   }, []);
 
-  const addToHistory = useCallback((type: HistoryEntry['type'], description: string, data: any, clientId?: number, taskId?: number) => {
+  const addToHistory = useCallback((type: HistoryEntry['type'], description: string, data: HistoryData, clientId?: number, taskId?: number) => {
     setHistory(prev => {
       const entry: HistoryEntry = {
         id: Date.now(),
@@ -380,29 +325,105 @@ export function useZenData() {
     setHistoryIndex(prev => Math.min(prev + 1, 49));
   }, [historyIndex]);
 
-  const undo = useCallback(() => {
-    setHistoryIndex(prev => Math.max(0, prev - 1));
+  const applyChange = useCallback((entry: HistoryEntry, isUndo: boolean) => {
+    // Helper to determine if we should do the forward or reverse action
+    // Undo: reverse action. Redo: forward action.
+    const action = isUndo ? 'reverse' : 'forward';
+
+    switch (entry.type) {
+      case 'client_add': {
+        const client = entry.data as Client;
+        if (action === 'reverse') {
+          setClients(prev => prev.filter(c => c.id !== client.id));
+        } else {
+          setClients(prev => [...prev, client].sort((a, b) => a.id - b.id));
+        }
+        break;
+      }
+      case 'client_remove': {
+        const client = entry.data as Client;
+        if (action === 'reverse') {
+          setClients(prev => [...prev, client].sort((a, b) => a.id - b.id));
+        } else {
+          setClients(prev => prev.filter(c => c.id !== client.id));
+        }
+        break;
+      }
+      case 'task_create': {
+        const task = entry.data as Task;
+        const clientId = entry.clientId as number;
+        if (action === 'reverse') {
+          setClients(prev => prev.map(c => c.id === clientId ? { ...c, tasks: c.tasks.filter(t => t.id !== task.id) } : c));
+        } else {
+          setClients(prev => prev.map(c => c.id === clientId ? { ...c, tasks: [task, ...c.tasks] } : c));
+        }
+        break;
+      }
+      case 'task_delete': {
+        const task = entry.data as Task;
+        const clientId = entry.clientId as number;
+        if (action === 'reverse') {
+          setClients(prev => prev.map(c => c.id === clientId ? { ...c, tasks: [task, ...c.tasks] } : c));
+        } else {
+          setClients(prev => prev.map(c => c.id === clientId ? { ...c, tasks: c.tasks.filter(t => t.id !== task.id) } : c));
+        }
+        break;
+      }
+      case 'task_complete': {
+        const { taskId, clientId } = entry;
+        const data = entry.data as { isDone: boolean };
+        // If forward: sets to stored state (data.isDone)
+        // If reverse: sets to opposite of stored state (!data.isDone)
+        const targetState = action === 'forward' ? data.isDone : !data.isDone;
+
+        setClients(prev => prev.map(c => {
+          if (c.id !== clientId) return c;
+          return {
+            ...c,
+            tasks: c.tasks.map(t => {
+              if (t.id !== taskId) return t;
+              return { ...t, isDone: targetState, completedAt: targetState ? Date.now() : undefined };
+            })
+          };
+        }));
+        break;
+      }
+    }
   }, []);
 
-  const redo = useCallback(() => {
-    setHistoryIndex(prev => Math.min(history.length - 1, prev + 1));
-  }, [history.length]);
+  const undo = useCallback(() => {
+    const idx = historyIndexRef.current;
+    if (idx < 0) return;
+    const entry = historyRef.current[idx];
+    applyChange(entry, true);
+    setHistoryIndex(prev => Math.max(prev - 1, -1));
+  }, [applyChange]);
 
-  const actions = {
+  const redo = useCallback(() => {
+    const idx = historyIndexRef.current;
+    const hist = historyRef.current;
+    if (idx >= hist.length - 1) return;
+    const entry = hist[idx + 1];
+    applyChange(entry, false);
+    setHistoryIndex(prev => Math.min(prev + 1, hist.length - 1));
+  }, [applyChange]);
+
+  const actions = useMemo(() => ({
     addClient: (name: string, priority: Priority) => {
-      const newClient: Client = { 
+      const newClient: Client = {
         id: Date.now(), name: name.trim(), priority, notes: '', tasks: [], createdAt: Date.now()
       };
       setClients(prev => [...prev, newClient]);
-      addToHistory('client_add', `Added project "${newClient.name}"`, newClient, newClient.id);
+      addToHistory('client_add', `Added project "${newClient.name}"`, newClient as any, newClient.id);
     },
     removeClient: (id: number) => {
-      const client = clients.find(c => c.id === id);
+      const client = clientsRef.current.find(c => c.id === id);
       if (client) {
         setClients(prev => prev.filter(c => c.id !== id));
-        addToHistory('client_remove', `Removed "${client.name}"`, client, id);
+        addToHistory('client_remove', `Removed "${client.name}"`, client as any, id);
       }
     },
+    // ... existing updates
     updateClientPriority: (id: number, priority: Priority) => {
       setClients(prev => prev.map(c => c.id === id ? { ...c, priority } : c));
     },
@@ -410,19 +431,21 @@ export function useZenData() {
       setClients(prev => prev.map(c => c.id === id ? { ...c, notes } : c));
     },
     addTask: (clientId: number, title: string, priority: Priority, effort: Effort) => {
-      const newTask: Task = { 
-        id: Date.now(), title: title.trim(), isDone: false, priority, effort, 
+      const newTask: Task = {
+        id: Date.now(), title: title.trim(), isDone: false, priority, effort,
         createdAt: Date.now(), comments: [], pointsEarned: 0, timeSpent: 0, predictedTime: 0
       };
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, tasks: [newTask, ...c.tasks] } : c));
       addToHistory('task_create', `Created "${newTask.title}"`, newTask, clientId, newTask.id);
     },
+    // ... addTaskToMany omitted for brevity, keeping existing logic but maybe won't undo perfectly yet
     addTaskToMany: (clientIds: number[], title: string, priority: Priority, effort: Effort) => {
+      // Keeping as is for now, complex to fully reverse without batch logic
       const cleanTitle = title.trim();
       const uniqueClientIds = Array.from(new Set(clientIds)).filter(Boolean);
       if (!cleanTitle || uniqueClientIds.length === 0) return;
 
-      const baseId = Date.now() * 1000; 
+      const baseId = Date.now() * 1000;
       const createdAt = Date.now();
 
       setClients(prev =>
@@ -444,41 +467,42 @@ export function useZenData() {
           return { ...client, tasks: [newTask, ...client.tasks] };
         })
       );
-
+      // Note: Generic history entry, won't be fully revocable by new applyChange yet
       addToHistory(
         'task_create',
         `Created "${cleanTitle}" for ${uniqueClientIds.length} projects`,
-        { title: cleanTitle, priority, effort, clientIds: uniqueClientIds }
+        { title: cleanTitle, priority, effort } as any,
+        undefined
       );
     },
     addTaskToAll: (title: string, priority: Priority, effort: Effort) => {
-      const allIds = clients.map(c => c.id);
+      const allIds = clientsRef.current.map(c => c.id);
       actions.addTaskToMany(allIds, title, priority, effort);
     },
     updateTaskTitle: (cId: number, tId: number, title: string) => {
-      setClients(prev => prev.map(c => c.id === cId ? { 
-        ...c, tasks: c.tasks.map(t => t.id === tId ? { ...t, title: title.trim() } : t) 
+      setClients(prev => prev.map(c => c.id === cId ? {
+        ...c, tasks: c.tasks.map(t => t.id === tId ? { ...t, title: title.trim() } : t)
       } : c));
     },
     updateTaskPriority: (cId: number, tId: number, priority: Priority) => {
-      setClients(prev => prev.map(c => c.id === cId ? { 
-        ...c, tasks: c.tasks.map(t => t.id === tId ? { ...t, priority } : t) 
+      setClients(prev => prev.map(c => c.id === cId ? {
+        ...c, tasks: c.tasks.map(t => t.id === tId ? { ...t, priority } : t)
       } : c));
     },
     updateTaskEffort: (cId: number, tId: number, effort: Effort) => {
-      setClients(prev => prev.map(c => c.id === cId ? { 
-        ...c, tasks: c.tasks.map(t => t.id === tId ? { ...t, effort } : t) 
+      setClients(prev => prev.map(c => c.id === cId ? {
+        ...c, tasks: c.tasks.map(t => t.id === tId ? { ...t, effort } : t)
       } : c));
     },
     updateTaskDueDate: (cId: number, tId: number, dueDate?: number) => {
-      setClients(prev => prev.map(c => c.id === cId ? { 
-        ...c, tasks: c.tasks.map(t => t.id === tId ? { ...t, dueDate } : t) 
+      setClients(prev => prev.map(c => c.id === cId ? {
+        ...c, tasks: c.tasks.map(t => t.id === tId ? { ...t, dueDate } : t)
       } : c));
     },
     addTaskComment: (cId: number, tId: number, text: string) => {
       const comment: Comment = { id: Date.now(), text: text.trim(), createdAt: Date.now(), author: 'You' };
-      setClients(prev => prev.map(c => c.id === cId ? { 
-        ...c, tasks: c.tasks.map(t => t.id === tId ? { ...t, comments: [...t.comments, comment] } : t) 
+      setClients(prev => prev.map(c => c.id === cId ? {
+        ...c, tasks: c.tasks.map(t => t.id === tId ? { ...t, comments: [...t.comments, comment] } : t)
       } : c));
     },
     toggleTask: (cId: number, tId: number) => {
@@ -497,6 +521,8 @@ export function useZenData() {
               const onTime = !t.dueDate || Date.now() <= t.dueDate;
               earnedPoints = GamificationUtils.calculateTaskPoints(t.priority, t.effort, onTime);
             }
+            // Add history only if we are marking as DONE (user mental model: undo completion)
+            // Or should we track un-completion too? Standard is track all.
             return {
               ...t,
               isDone: willBeDone,
@@ -507,13 +533,46 @@ export function useZenData() {
         };
       }));
 
-      if (earnedPoints > 0) {
-        playSuccess();
-        sendSystemNotification(taskTitle);
+      // NOTE: We need to trigger this OUTSIDE the map to avoid side effects during render/set state? 
+      // No, this is inside an event handler, so it's fine.
+      // But we need to know if it was actually toggled.
+      // The previous logic had a side effect for notification.
+      // Let's replicate that and add history.
+
+      // Since we don't have the task object easily here without searching, 
+      // let's rely on finding it.
+      const client = clientsRef.current.find(c => c.id === cId);
+      const task = client?.tasks.find(t => t.id === tId);
+
+      if (task) {
+        const willBeDone = !task.isDone;
+        addToHistory(
+          'task_complete',
+          `Marked "${task.title}" as ${willBeDone ? 'done' : 'todo'}`,
+          { isDone: willBeDone } as any,
+          cId,
+          tId
+        );
+
+        if (willBeDone) {
+          // re-calculate points logic for notification
+          const onTime = !task.dueDate || Date.now() <= task.dueDate;
+          const points = GamificationUtils.calculateTaskPoints(task.priority, task.effort, onTime);
+          if (points > 0) {
+            playSuccess();
+            fireTaskComplete({ intensity: points > 15 ? 'celebration' : 'light' });
+            sendSystemNotification(task.title);
+          }
+        }
       }
     },
     deleteTask: (cId: number, tId: number) => {
-      setClients(prev => prev.map(c => c.id === cId ? { ...c, tasks: c.tasks.filter(t => t.id !== tId) } : c));
+      const client = clientsRef.current.find(c => c.id === cId);
+      const task = client?.tasks.find(t => t.id === tId);
+      if (task) {
+        setClients(prev => prev.map(c => c.id === cId ? { ...c, tasks: c.tasks.filter(t => t.id !== tId) } : c));
+        addToHistory('task_delete', `Deleted "${task.title}"`, task as any, cId, tId);
+      }
     },
     reorderTasks: (cId: number, activeId: number, overId: number) => {
       setClients(prev => prev.map(c => {
@@ -524,12 +583,17 @@ export function useZenData() {
       }));
     },
     toggleSound: () => {
-      const next = { ...settings, soundEnabled: !settings.soundEnabled };
+      const current = settingsRef.current;
+      const next = { ...current, soundEnabled: !current.soundEnabled };
       setSettings(next);
       localStorage.setItem('zen_settings', JSON.stringify(next));
     },
+    updateSettings: (newSettings: AppSettings) => {
+      setSettings(newSettings);
+      localStorage.setItem('zen_settings', JSON.stringify(newSettings));
+    },
     exportData: () => {
-      const blob = new Blob([JSON.stringify(clients, null, 2)], { type: "application/json" });
+      const blob = new Blob([JSON.stringify(clientsRef.current, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -550,9 +614,13 @@ export function useZenData() {
         return { ...s, endTime, duration: Math.floor((endTime - s.startTime) / 1000), wasCompleted };
       }));
     },
-    undo, redo, getHistory: () => history, dismissAchievement: () => setNewAchievement(null),
-    canUndo: () => historyIndex > 0, canRedo: () => historyIndex < history.length - 1
-  };
+    undo, redo, getHistory: () => historyRef.current, dismissAchievement: () => setNewAchievement(null),
+    canUndo: () => historyIndexRef.current > 0, canRedo: () => historyIndexRef.current < historyRef.current.length - 1,
+    toggleAmbient: (enable: boolean) => {
+      if (enable) playAmbient();
+      else stopAmbient();
+    }
+  }), [addToHistory, playSuccess, fireTaskComplete, sendSystemNotification, undo, redo, applyChange, playAmbient, stopAmbient]);
 
   return {
     clients,
@@ -560,6 +628,8 @@ export function useZenData() {
     settings,
     userProgress,
     newAchievement,
-    actions
+    historyIndex,
+    actions,
+    isAmbientPlaying
   };
 }

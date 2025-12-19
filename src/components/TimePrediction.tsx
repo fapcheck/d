@@ -97,7 +97,7 @@ export const TimePredictionCard: React.FC<TimePredictionProps> = ({
             <span className="text-sm font-medium text-secondary">Завершение</span>
           </div>
           <div className="text-2xl font-bold text-white">
-            {prediction.milestones.length > 0 
+            {prediction.milestones.length > 0
               ? formatDate(prediction.milestones[prediction.milestones.length - 1].estimatedDate)
               : 'Неизвестно'
             }
@@ -154,34 +154,34 @@ export const TimePredictionCard: React.FC<TimePredictionProps> = ({
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={milestonesData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis 
-                  dataKey="name" 
-                  stroke="#9ca3af" 
+                <XAxis
+                  dataKey="name"
+                  stroke="#9ca3af"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                 />
-                <YAxis 
-                  stroke="#9ca3af" 
+                <YAxis
+                  stroke="#9ca3af"
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
                 />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#1f2937', 
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#1f2937',
                     border: '1px solid #374151',
                     borderRadius: '8px',
                     color: '#fff'
                   }}
-                  formatter={(value: any, name: any) => [
+                  formatter={(value, name) => [
                     name === 'tasks' ? `${value} задач` : `${value}%`,
                     name === 'tasks' ? 'Задач выполнено' : 'Уверенность'
                   ]}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="tasks" 
+                <Line
+                  type="monotone"
+                  dataKey="tasks"
                   stroke="#3b82f6"
                   strokeWidth={3}
                   dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}

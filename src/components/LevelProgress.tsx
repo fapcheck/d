@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Star } from 'lucide-react';
-import { LEVELS, GamificationUtils } from '../types';
+import { LEVELS } from '../constants';
+import { GamificationUtils } from '../utils';
 
 interface LevelProgressProps {
   points: number;
@@ -9,10 +10,10 @@ interface LevelProgressProps {
   className?: string;
 }
 
-export const LevelProgress: React.FC<LevelProgressProps> = ({ 
-  points, 
-  level, 
-  className = '' 
+export const LevelProgress: React.FC<LevelProgressProps> = ({
+  points,
+  level,
+  className = ''
 }) => {
   const currentLevel = LEVELS.find(l => l.level === level) || LEVELS[0];
   const nextLevel = LEVELS.find(l => l.level === level + 1);
@@ -20,7 +21,7 @@ export const LevelProgress: React.FC<LevelProgressProps> = ({
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      <motion.div 
+      <motion.div
         className="flex items-center gap-2 px-3 py-2 rounded-xl bg-surface border border-white/10"
         whileHover={{ scale: 1.02 }}
       >

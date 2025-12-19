@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Activity, AlertTriangle, Brain, TrendingUp, TrendingDown, Minus, Clock, Target, Calendar } from 'lucide-react';
-import { HEALTH_LEVELS } from '../types';
+import { HEALTH_LEVELS } from '../constants';
 import type { ProductivityHealth } from '../types';
 
 interface ProductivityHealthProps {
@@ -9,9 +9,9 @@ interface ProductivityHealthProps {
   className?: string;
 }
 
-export const ProductivityHealthIndicator: React.FC<ProductivityHealthProps> = ({ 
-  health, 
-  className = '' 
+export const ProductivityHealthIndicator: React.FC<ProductivityHealthProps> = ({
+  health,
+  className = ''
 }) => {
   const healthLevel = HEALTH_LEVELS[health.level];
   const Icon = healthLevel.icon;
@@ -50,7 +50,7 @@ export const ProductivityHealthIndicator: React.FC<ProductivityHealthProps> = ({
             <p className="text-sm text-secondary">{healthLevel.description}</p>
           </div>
         </div>
-        
+
         <div className="text-right">
           <div className={`text-3xl font-bold ${healthLevel.color}`}>
             {health.score}
@@ -58,8 +58,8 @@ export const ProductivityHealthIndicator: React.FC<ProductivityHealthProps> = ({
           <div className="flex items-center gap-1 mt-1">
             {getTrendIcon()}
             <span className="text-xs text-secondary">
-              {health.trends.direction === 'improving' ? 'Улучшается' : 
-               health.trends.direction === 'declining' ? 'Ухудшается' : 'Стабильно'}
+              {health.trends.direction === 'improving' ? 'Улучшается' :
+                health.trends.direction === 'declining' ? 'Ухудшается' : 'Стабильно'}
             </span>
           </div>
         </div>
@@ -121,11 +121,10 @@ export const ProductivityHealthIndicator: React.FC<ProductivityHealthProps> = ({
               className="p-3 bg-primary/5 border border-primary/10 rounded-lg"
             >
               <div className="flex items-start gap-3">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                  rec.priority === 'high' ? 'bg-red-500/20 text-red-400' :
-                  rec.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                  'bg-gray-500/20 text-gray-400'
-                }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${rec.priority === 'high' ? 'bg-red-500/20 text-red-400' :
+                    rec.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                      'bg-gray-500/20 text-gray-400'
+                  }`}>
                   {rec.priority === 'high' ? '!' : rec.priority === 'medium' ? '•' : '○'}
                 </div>
                 <div className="flex-1">
