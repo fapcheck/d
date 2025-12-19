@@ -23,13 +23,11 @@ import { PRIORITY_CONFIG } from './types';
 import type { Priority, Effort } from './types';
 
 // --- Lazy Loading for Heavy Components ---
-// Optimizes startup time by loading these only when needed
 const FocusView = lazy(() => import('./components/FocusView').then(module => ({ default: module.FocusView })));
 const StatsDashboard = lazy(() => import('./components/StatsDashboard').then(module => ({ default: module.StatsDashboard })));
 const AchievementsModal = lazy(() => import('./components/AchievementsModal').then(module => ({ default: module.AchievementsModal })));
 
 // --- Error Boundary Component ---
-// Prevents white screen crashes by catching errors in the component tree
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
@@ -44,7 +42,6 @@ class ErrorBoundary extends React.Component<
   }
 
   handleReset = () => {
-    // Hard reset storage if deep corruption occurs
     if (confirm("Reset application data? This cannot be undone.")) {
         localStorage.clear();
         window.location.reload();
@@ -84,7 +81,6 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// --- Loading Spinner ---
 const LoadingFallback = () => (
     <div className="w-full h-96 flex items-center justify-center text-secondary">
         <motion.div 
@@ -122,22 +118,17 @@ function AppContent() {
   const [newTaskPriority, setNewTaskPriority] = useState<Priority>('normal');
   const [newTaskEffort, setNewTaskEffort] = useState<Effort>('quick');
 
-  // --- Keyboard Shortcuts (Cmd+K) ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
             e.preventDefault();
-            // Switch to dashboard
             setViewMode('dashboard');
             setSelectedClientId(null);
             
-            // Focus the quick task input if available
-            // We use a small timeout to allow React to render the dashboard first
             setTimeout(() => {
                 const input = document.querySelector('input[placeholder="Суть задачи..."]') as HTMLInputElement;
                 if (input) {
                     input.focus();
-                    // Optional: Visual cue
                     input.parentElement?.classList.add('ring-2', 'ring-primary');
                     setTimeout(() => input.parentElement?.classList.remove('ring-2', 'ring-primary'), 500);
                 }
@@ -357,7 +348,9 @@ function AppContent() {
         <AnimatePresence mode="wait">
           {viewMode === 'dashboard' && !selectedClientId && (
             <motion.div key="clients-list" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-12">
-              <QuickTaskBar clients={clients} onAddTask={actions.addTask} />
+              {/* Пакетное добавление через QuickTaskBar */}
+              <QuickTaskBar clients={clients} onAddTaskToMany={actions.addTaskToMany} />
+              
               <div>
                   <div className="flex items-center gap-4 mb-6 px-2">
                     <h2 className="text-sm font-bold uppercase tracking-widest text-secondary">Ваши клиенты</h2>
@@ -461,7 +454,6 @@ function AppContent() {
   );
 }
 
-// Wrapper to ensure ErrorBoundary catches errors in the logic component
 export default function App() {
     return (
         <ErrorBoundary>

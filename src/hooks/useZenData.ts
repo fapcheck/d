@@ -11,7 +11,6 @@ import type {
 } from '../types';
 
 // --- Helper: Audio Engine ---
-// Kept internal to keep the main hook clean
 const useAudioEngine = (enabled: boolean) => {
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -118,7 +117,7 @@ const normalizeClient = (v: any): Client | null => {
   };
 };
 
-// --- Helper: Stats Calculation (Pure Function) ---
+// --- Helper: Stats Calculation ---
 const calculateUserStats = (clients: Client[], focusSessions: FocusSession[]): UserStats => {
   let totalTasksCompleted = 0;
   const tasksByDate: { [date: string]: number } = {};
@@ -148,7 +147,6 @@ const calculateUserStats = (clients: Client[], focusSessions: FocusSession[]): U
     const d = new Date(dates[i]);
     const expected = new Date(today);
     expected.setDate(expected.getDate() - i);
-    // Allow for "yesterday" if user hasn't completed tasks today yet
     if (DateUtils.isSameDay(d, expected) || (i === 0 && DateUtils.isSameDay(d, new Date(today.getTime() - 86400000)))) {
       currentStreak++;
     } else {
@@ -212,9 +210,7 @@ export function useZenData() {
   const [focusSessions, setFocusSessions] = useState<FocusSession[]>([]);
   const [newAchievement, setNewAchievement] = useState<Achievement | null>(null);
   
-  // Track unlocked achievements to fire notifications, but DON'T store all achievements in state
   const prevUnlockedIds = useRef<Set<string>>(new Set());
-
   const { playSuccess, playAchievement } = useAudioEngine(settings.soundEnabled);
 
   const isSaving = useRef(false);
@@ -297,7 +293,7 @@ export function useZenData() {
     localStorage.setItem('zen_sessions', JSON.stringify(focusSessions));
   }, [focusSessions, isLoaded]);
 
-  // --- Derived State (Stats & Achievements) ---
+  // --- Derived State ---
   const userProgress = useMemo((): UserProgress => {
     if (!isLoaded) {
       return {
@@ -308,13 +304,8 @@ export function useZenData() {
       };
     }
 
-    // 1. Calculate Stats
     const stats = calculateUserStats(clients, focusSessions);
-    
-    // 2. Derive Achievements deterministically (No setState required!)
     const derivedAchievements = GamificationUtils.checkAchievements(stats, ACHIEVEMENTS);
-    
-    // 3. Calculate Points/Level
     const totalPoints = clients.reduce((acc, c) => 
       acc + c.tasks.reduce((sum, t) => sum + (t.isDone ? (t.pointsEarned || 0) : 0), 0), 0
     );
@@ -326,7 +317,7 @@ export function useZenData() {
       level: levelInfo.level,
       currentLevelPoints: progress.current,
       nextLevelPoints: progress.next,
-      achievements: derivedAchievements, // Use the derived list directly
+      achievements: derivedAchievements,
       stats,
       focusSessions,
       history,
@@ -342,23 +333,17 @@ export function useZenData() {
   }, [clients, focusSessions, isLoaded, history]);
 
   // --- Achievement Notifications ---
-  // We only use Effect to trigger the "New Achievement" toast, not to store data
   useEffect(() => {
     if (!isLoaded) return;
-
-    // Initialize the ref on first load so we don't blast notifications for old achievements
     if (prevUnlockedIds.current.size === 0) {
         userProgress.achievements.forEach(a => {
             if (a.unlockedAt) prevUnlockedIds.current.add(a.id);
         });
         return;
     }
-
-    // Check for new unlocks
     const newUnlock = userProgress.achievements.find(a => 
         a.unlockedAt && !prevUnlockedIds.current.has(a.id)
     );
-
     if (newUnlock) {
       prevUnlockedIds.current.add(newUnlock.id);
       setNewAchievement(newUnlock);
@@ -395,11 +380,11 @@ export function useZenData() {
     setHistoryIndex(prev => Math.min(prev + 1, 49));
   }, [historyIndex]);
 
-  const undo = useCallback((entryId: number) => {
+  const undo = useCallback(() => {
     setHistoryIndex(prev => Math.max(0, prev - 1));
   }, []);
 
-  const redo = useCallback((entryId: number) => {
+  const redo = useCallback(() => {
     setHistoryIndex(prev => Math.min(history.length - 1, prev + 1));
   }, [history.length]);
 
@@ -431,6 +416,44 @@ export function useZenData() {
       };
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, tasks: [newTask, ...c.tasks] } : c));
       addToHistory('task_create', `Created "${newTask.title}"`, newTask, clientId, newTask.id);
+    },
+    addTaskToMany: (clientIds: number[], title: string, priority: Priority, effort: Effort) => {
+      const cleanTitle = title.trim();
+      const uniqueClientIds = Array.from(new Set(clientIds)).filter(Boolean);
+      if (!cleanTitle || uniqueClientIds.length === 0) return;
+
+      const baseId = Date.now() * 1000; 
+      const createdAt = Date.now();
+
+      setClients(prev =>
+        prev.map(client => {
+          if (!uniqueClientIds.includes(client.id)) return client;
+          const idx = uniqueClientIds.indexOf(client.id);
+          const newTask: Task = {
+            id: baseId + idx,
+            title: cleanTitle,
+            isDone: false,
+            priority,
+            effort,
+            createdAt,
+            comments: [],
+            pointsEarned: 0,
+            timeSpent: 0,
+            predictedTime: 0
+          };
+          return { ...client, tasks: [newTask, ...client.tasks] };
+        })
+      );
+
+      addToHistory(
+        'task_create',
+        `Created "${cleanTitle}" for ${uniqueClientIds.length} projects`,
+        { title: cleanTitle, priority, effort, clientIds: uniqueClientIds }
+      );
+    },
+    addTaskToAll: (title: string, priority: Priority, effort: Effort) => {
+      const allIds = clients.map(c => c.id);
+      actions.addTaskToMany(allIds, title, priority, effort);
     },
     updateTaskTitle: (cId: number, tId: number, title: string) => {
       setClients(prev => prev.map(c => c.id === cId ? { 
@@ -468,15 +491,12 @@ export function useZenData() {
           ...c,
           tasks: c.tasks.map(t => {
             if (t.id !== tId) return t;
-            
             const willBeDone = !t.isDone;
             taskTitle = t.title;
-            
             if (willBeDone) {
               const onTime = !t.dueDate || Date.now() <= t.dueDate;
               earnedPoints = GamificationUtils.calculateTaskPoints(t.priority, t.effort, onTime);
             }
-
             return {
               ...t,
               isDone: willBeDone,
@@ -487,7 +507,6 @@ export function useZenData() {
         };
       }));
 
-      // Side effects triggered after state update logic
       if (earnedPoints > 0) {
         playSuccess();
         sendSystemNotification(taskTitle);

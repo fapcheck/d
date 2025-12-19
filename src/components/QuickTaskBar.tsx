@@ -1,23 +1,22 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Send, ChevronDown, Check, Briefcase, Zap, Clock, Coffee, Flame, Hash } from 'lucide-react';
+import { Send, ChevronDown, Check, Briefcase, Zap, Clock, Coffee, Flame, Hash, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EFFORT_CONFIG, PRIORITY_CONFIG } from '../types';
 import type { Client, Effort, Priority } from '../types';
 
 interface QuickTaskBarProps {
     clients: Client[];
-    onAddTask: (clientId: number, title: string, priority: Priority, effort: Effort) => void;
+    // Переходим на пакетное добавление
+    onAddTaskToMany: (clientIds: number[], title: string, priority: Priority, effort: Effort) => void;
 }
 
 // --- Smart Parsing Logic ---
-// Extracts metadata from the input string (e.g., "Fix bug !high ~30m")
 const parseInput = (text: string, clients: Client[]) => {
     let cleanText = text;
     let detectedPriority: Priority | null = null;
     let detectedEffort: Effort | null = null;
     let detectedClientId: number | null = null;
 
-    // 1. Parse Priority (!h, !high, !urg)
     const priorityMatch = text.match(/(?:^|\s)!(h|high|n|normal|l|low)\b/i);
     if (priorityMatch) {
         const val = priorityMatch[1].toLowerCase();
@@ -27,7 +26,6 @@ const parseInput = (text: string, clients: Client[]) => {
         cleanText = cleanText.replace(priorityMatch[0], '');
     }
 
-    // 2. Parse Effort (~q, ~5, ~m, ~30)
     const effortMatch = text.match(/(?:^|\s)~(q|quick|5|m|med|30|l|long)\b/i);
     if (effortMatch) {
         const val = effortMatch[1].toLowerCase();
@@ -37,7 +35,6 @@ const parseInput = (text: string, clients: Client[]) => {
         cleanText = cleanText.replace(effortMatch[0], '');
     }
 
-    // 3. Parse Client (#ClientName - partial match)
     const clientMatch = text.match(/(?:^|\s)#(\w+)/);
     if (clientMatch) {
         const search = clientMatch[1].toLowerCase();
@@ -49,38 +46,67 @@ const parseInput = (text: string, clients: Client[]) => {
     }
 
     return {
-        title: cleanText.replace(/\s+/g, ' ').trim(), // Remove double spaces
+        title: cleanText.replace(/\s+/g, ' ').trim(),
         priority: detectedPriority,
         effort: detectedEffort,
         clientId: detectedClientId
     };
 };
 
-export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }) => {
-    const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTaskToMany }) => {
+    // Множественный выбор через Set
+    const [selectedClientIds, setSelectedClientIds] = useState<Set<number>>(new Set());
     const [inputValue, setInputValue] = useState('');
     
-    // Explicit overrides (user clicks buttons) vs Implicit (parsed from text)
     const [manualPriority, setManualPriority] = useState<Priority | null>(null);
     const [manualEffort, setManualEffort] = useState<Effort | null>(null);
 
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const [highlightedIndex, setHighlightedIndex] = useState(0);
 
     // --- Computed State ---
+    const allSelected = clients.length > 0 && selectedClientIds.size === clients.length;
     const parsedData = useMemo(() => parseInput(inputValue, clients), [inputValue, clients]);
     
-    // Final values prefer Manual override > Parsed value > Default
     const finalPriority = manualPriority ?? parsedData.priority ?? 'normal';
     const finalEffort = manualEffort ?? parsedData.effort ?? 'quick';
-    const finalClientId = selectedClientId ?? parsedData.clientId;
-    const finalClient = clients.find(c => c.id === finalClientId);
+
+    // Итоговый список ID: если выбрано вручную — берем их, иначе пробуем распарсить из текста
+    const finalClientIds = useMemo(() => {
+        if (selectedClientIds.size > 0) return Array.from(selectedClientIds);
+        if (parsedData.clientId) return [parsedData.clientId];
+        return [];
+    }, [selectedClientIds, parsedData.clientId]);
+
+    // Текст для кнопки выбора проектов
+    const selectionLabel = useMemo(() => {
+        if (allSelected) return `ALL (${clients.length})`;
+        if (selectedClientIds.size > 1) return `Выбрано: ${selectedClientIds.size}`;
+        if (selectedClientIds.size === 1) {
+            const id = Array.from(selectedClientIds)[0];
+            return clients.find(c => c.id === id)?.name || 'Проект...';
+        }
+        if (parsedData.clientId) {
+            return clients.find(c => c.id === parsedData.clientId)?.name || 'Проект...';
+        }
+        return 'Проект...';
+    }, [allSelected, selectedClientIds, clients, parsedData.clientId]);
+
+    // --- Helpers for Selection ---
+    const toggleClient = (id: number) => {
+        setSelectedClientIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const setAll = () => setSelectedClientIds(new Set(clients.map(c => c.id)));
+    const clearAll = () => setSelectedClientIds(new Set());
 
     // --- Event Handlers ---
-
-    // Handle outside click to close dropdown
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -91,12 +117,10 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    // Reset manual overrides when input clears
     useEffect(() => {
         if (!inputValue) {
             setManualPriority(null);
             setManualEffort(null);
-            // We don't reset Client ID intentionally to allow rapid entry for same client
         }
     }, [inputValue]);
 
@@ -104,42 +128,27 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }
         if (e.key === 'Enter') {
             e.preventDefault();
             handleSubmit();
-        } else if (e.key === 'ArrowDown' && isDropdownOpen) {
-            e.preventDefault();
-            setHighlightedIndex(prev => (prev + 1) % clients.length);
-        } else if (e.key === 'ArrowUp' && isDropdownOpen) {
-            e.preventDefault();
-            setHighlightedIndex(prev => (prev - 1 + clients.length) % clients.length);
-        } else if (e.key === 'Enter' && isDropdownOpen) {
-            // Select highlighted client
-            e.preventDefault();
-            if (clients[highlightedIndex]) {
-                setSelectedClientId(clients[highlightedIndex].id);
-                setIsDropdownOpen(false);
-                inputRef.current?.focus();
-            }
         } else if (e.key === 'Escape') {
             setIsDropdownOpen(false);
         }
     };
 
     const handleSubmit = () => {
-        if (!finalClientId || !parsedData.title) return; // Basic validation
+        if (finalClientIds.length === 0 || !parsedData.title) return;
         
-        onAddTask(finalClientId, parsedData.title, finalPriority, finalEffort);
+        onAddTaskToMany(finalClientIds, parsedData.title, finalPriority, finalEffort);
         
-        // Reset only transient state
         setInputValue('');
         setManualPriority(null);
         setManualEffort(null);
-        // Keep selected client for subsequent tasks (workflow optimization)
+        // Не сбрасываем выбор проектов для возможности быстрого ввода следующей задачи
     };
 
     return (
         <div className="glass rounded-2xl shadow-zen p-1 relative z-30 mb-10 transition-all focus-within:ring-1 focus-within:ring-primary/30">
             <div className="flex flex-col md:flex-row gap-2 items-center">
                 
-                {/* --- Client Selector --- */}
+                {/* --- Client Selector (Multi) --- */}
                 <div className="w-full md:w-1/4 relative z-40" ref={dropdownRef}>
                     <button 
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -149,14 +158,14 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }
                         `}
                     >
                         <span className="truncate flex items-center gap-2 font-medium">
-                            {finalClient ? (
+                            {finalClientIds.length > 0 ? (
                                 <>
-                                    <Briefcase size={16} className="text-primary" />
-                                    {finalClient.name}
+                                    {allSelected ? <Users size={16} className="text-primary" /> : <Briefcase size={16} className="text-primary" />}
+                                    {selectionLabel}
                                 </>
                             ) : (
                                 <span className="opacity-50 flex items-center gap-2">
-                                    <Hash size={16} /> Проект...
+                                    <Hash size={16} /> {selectionLabel}
                                 </span>
                             )}
                         </span>
@@ -173,41 +182,58 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                                 transition={{ duration: 0.15 }}
-                                className="absolute top-full left-0 right-0 mt-2 max-h-64 overflow-y-auto rounded-xl border border-white/10 bg-[#161b22] shadow-2xl p-1 z-50 scrollbar-thin scrollbar-thumb-white/10"
+                                className="absolute top-full left-0 right-0 mt-2 max-h-80 overflow-y-auto rounded-xl border border-white/10 bg-[#161b22] shadow-2xl p-1 z-50 scrollbar-thin scrollbar-thumb-white/10"
                             >
                                 {clients.length === 0 ? (
                                     <div className="p-4 text-center text-secondary text-sm">Нет проектов</div>
                                 ) : (
-                                    clients.map((client, index) => (
+                                    <>
+                                        {/* Row: ALL */}
                                         <button
-                                            key={client.id}
-                                            onClick={() => {
-                                                setSelectedClientId(client.id);
-                                                setIsDropdownOpen(false);
-                                                inputRef.current?.focus();
-                                            }}
+                                            onClick={() => (allSelected ? clearAll() : setAll())}
                                             className={`
-                                                w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all mb-0.5 last:mb-0
-                                                ${finalClientId === client.id ? 'bg-primary/20 text-white' : 'text-gray-400'}
-                                                ${highlightedIndex === index ? 'bg-white/5 text-white' : ''}
+                                                w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all mb-1
+                                                ${allSelected ? 'bg-primary/20 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}
                                             `}
-                                            onMouseEnter={() => setHighlightedIndex(index)}
                                         >
-                                            <div className="flex items-center gap-2 truncate">
-                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${finalClientId === client.id ? 'bg-primary/20 text-primary' : 'bg-white/5 text-secondary'}`}>
-                                                    {client.name.charAt(0).toUpperCase()}
-                                                </div>
-                                                <span className="truncate">{client.name}</span>
-                                            </div>
-                                            {finalClientId === client.id && <Check size={14} className="text-primary" />}
+                                            <span className="truncate font-bold tracking-wider">ВСЕ ПРОЕКТЫ</span>
+                                            <span className="text-[10px] opacity-50 uppercase">
+                                                {allSelected ? 'Выбрано' : `Выбрать (${clients.length})`}
+                                            </span>
                                         </button>
-                                    ))
+
+                                        <div className="h-px bg-white/5 my-1 mx-2" />
+
+                                        {/* Individual Clients */}
+                                        {clients.map((client) => {
+                                            const isChecked = selectedClientIds.has(client.id);
+                                            return (
+                                                <button
+                                                    key={client.id}
+                                                    onClick={() => toggleClient(client.id)}
+                                                    className={`
+                                                        w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-all mb-0.5 last:mb-0
+                                                        ${isChecked ? 'bg-white/10 text-white' : 'text-gray-400 hover:bg-white/5 hover:text-white'}
+                                                    `}
+                                                >
+                                                    <div className="flex items-center gap-2 truncate">
+                                                        <div className={`w-5 h-5 rounded border border-white/10 flex items-center justify-center transition-colors ${isChecked ? 'bg-primary/30 border-primary/50' : 'bg-transparent'}`}>
+                                                            {isChecked && <Check size={12} className="text-primary" />}
+                                                        </div>
+                                                        <span className="truncate">{client.name}</span>
+                                                    </div>
+                                                    <span className="text-[10px] text-secondary opacity-50">
+                                                        {client.tasks.filter(t => !t.isDone).length} активных
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </>
                                 )}
                             </motion.div>
                         )}
                     </AnimatePresence>
                     
-                    {/* Divider for desktop */}
                     <div className="absolute right-0 top-2 bottom-2 w-px bg-white/5 hidden md:block pointer-events-none"></div>
                 </div>
                 
@@ -223,17 +249,17 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }
                         className="flex-1 w-full bg-transparent text-white px-4 py-3 outline-none placeholder-secondary/30 font-light tracking-wide"
                     />
 
-                    {/* Visual Parsed Indicators (Ghost Pills) */}
+                    {/* Visual Parsed Indicators */}
                     {(parsedData.priority || parsedData.effort) && (
                         <div className="hidden lg:flex absolute right-40 top-1/2 -translate-y-1/2 gap-2 pointer-events-none opacity-50">
                             {parsedData.priority && !manualPriority && (
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded border border-white/10 ${PRIORITY_CONFIG[parsedData.priority].color}`}>
-                                    {PRIORITY_CONFIG[parsedData.priority].label} detected
+                                    {PRIORITY_CONFIG[parsedData.priority].label}
                                 </span>
                             )}
                             {parsedData.effort && !manualEffort && (
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded border border-white/10 ${EFFORT_CONFIG[parsedData.effort].color}`}>
-                                    {EFFORT_CONFIG[parsedData.effort].label} detected
+                                    {EFFORT_CONFIG[parsedData.effort].label}
                                 </span>
                             )}
                         </div>
@@ -280,10 +306,10 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTask }
 
                     <button 
                         onClick={handleSubmit} 
-                        disabled={!finalClientId || !parsedData.title} 
+                        disabled={finalClientIds.length === 0 || !parsedData.title} 
                         className={`
                             p-2.5 rounded-xl transition-all font-bold shrink-0 shadow-lg active:scale-95
-                            ${(!finalClientId || !parsedData.title) 
+                            ${(finalClientIds.length === 0 || !parsedData.title) 
                                 ? 'bg-white/5 text-secondary cursor-not-allowed opacity-50' 
                                 : 'bg-primary/20 hover:bg-primary text-primary hover:text-bg shadow-primary/5'}
                         `}
