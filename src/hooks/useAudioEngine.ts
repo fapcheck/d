@@ -20,8 +20,8 @@ export const useAudioEngine = (enabled: boolean) => {
         return audioContextRef.current;
     }, []);
 
-    /** Воспроизводит звук успешного выполнения */
-    const playSuccess = useCallback(() => {
+    /** Воспроизводит звук успешного выполнения с вариациями */
+    const playSuccess = useCallback((options?: { isStreak?: boolean; isFirstOfDay?: boolean }) => {
         if (!enabled) return;
         try {
             const ctx = initCtx();
@@ -34,16 +34,32 @@ export const useAudioEngine = (enabled: boolean) => {
             gainNode.connect(ctx.destination);
 
             oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(800, ctx.currentTime);
-            oscillator.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.15);
 
-            gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+            // Higher pitch for streaks, special tone for first task
+            let baseFreq = 800;
+            let endFreq = 300;
+            let duration = 0.15;
+
+            if (options?.isStreak) {
+                baseFreq = 1000; // Higher pitch for streak
+                endFreq = 500;
+            }
+            if (options?.isFirstOfDay) {
+                baseFreq = 600; // Warmer tone for first task
+                endFreq = 800;
+                duration = 0.25;
+            }
+
+            oscillator.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(endFreq, ctx.currentTime + duration);
+
+            gainNode.gain.setValueAtTime(0.12, ctx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
 
             oscillator.start();
-            oscillator.stop(ctx.currentTime + 0.15);
-        } catch (e) {
-            console.error("Audio error", e);
+            oscillator.stop(ctx.currentTime + duration);
+        } catch {
+            // Audio context may not be available
         }
     }, [enabled, initCtx]);
 
@@ -72,8 +88,8 @@ export const useAudioEngine = (enabled: boolean) => {
                 oscillator.start(ctx.currentTime + index * 0.1);
                 oscillator.stop(ctx.currentTime + index * 0.1 + 0.3);
             });
-        } catch (e) {
-            console.error("Achievement sound error", e);
+        } catch {
+            // Achievement sound may fail silently
         }
     }, [enabled, initCtx]);
 
@@ -142,8 +158,8 @@ export const useAudioEngine = (enabled: boolean) => {
             ambientGainRef.current = gainNode;
             setIsAmbientPlaying(true);
 
-        } catch (e) {
-            console.error("Ambient sound error", e);
+        } catch {
+            // Ambient sound may fail silently
         }
     }, [enabled, initCtx, stopAmbient]);
 

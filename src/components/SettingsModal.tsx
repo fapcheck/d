@@ -65,7 +65,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex justify-between items-center p-5 border-b border-white/5 bg-white/5">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                         <Settings className="text-primary" size={24} />
-                        Menu
+                        Меню
                     </h2>
                     <button
                         onClick={onClose}
@@ -79,7 +79,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     {/* Navigation Section */}
                     <div className="p-3">
                         <h3 className="text-xs font-bold text-secondary uppercase tracking-wider mb-2 px-2">
-                            Navigation
+                            Навигация
                         </h3>
                         <div className="space-y-1">
                             <button
@@ -91,7 +91,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     <div className={`p-2 rounded-lg ${currentView === 'analytics' ? 'bg-primary/20 text-primary' : 'bg-white/5 text-gray-400'}`}>
                                         <BarChart3 size={18} />
                                     </div>
-                                    <span className="font-medium">Analytics</span>
+                                    <span className="font-medium">Аналитика</span>
                                 </div>
                                 {currentView === 'analytics' && <CheckCircle2 size={16} className="text-primary" />}
                             </button>
@@ -105,7 +105,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     <div className={`p-2 rounded-lg ${currentView === 'review' ? 'bg-purple-500/20 text-purple-400' : 'bg-white/5 text-gray-400'}`}>
                                         <Calendar size={18} />
                                     </div>
-                                    <span className="font-medium">Weekly Review</span>
+                                    <span className="font-medium">Итоги недели</span>
                                 </div>
                                 {currentView === 'review' && <CheckCircle2 size={16} className="text-purple-400" />}
                             </button>
@@ -117,7 +117,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     {/* Tools Section */}
                     <div className="p-3">
                         <h3 className="text-xs font-bold text-secondary uppercase tracking-wider mb-2 px-2">
-                            Tools
+                            Инструменты
                         </h3>
                         <div className="space-y-1">
                             <button
@@ -128,7 +128,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     <div className="p-2 rounded-lg bg-yellow-500/10 text-yellow-500 group-hover:bg-yellow-500/20">
                                         <Trophy size={18} />
                                     </div>
-                                    <span className="font-medium">Achievements</span>
+                                    <span className="font-medium">Достижения</span>
                                 </div>
                                 <ChevronRight size={16} className="opacity-0 group-hover:opacity-50 transition-opacity" />
                             </button>
@@ -141,7 +141,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                     <div className="p-2 rounded-lg bg-blue-500/10 text-blue-500 group-hover:bg-blue-500/20">
                                         <Clock size={18} />
                                     </div>
-                                    <span className="font-medium">History</span>
+                                    <span className="font-medium">История</span>
                                 </div>
                                 <ChevronRight size={16} className="opacity-0 group-hover:opacity-50 transition-opacity" />
                             </button>
@@ -155,9 +155,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         {isPinned ? <PinOff size={18} /> : <Pin size={18} />}
                                     </div>
                                     <div className="text-left">
-                                        <span className="font-medium block">Always on Top</span>
+                                        <span className="font-medium block">Поверх окон</span>
                                         <span className="text-xs text-secondary opacity-70">
-                                            {isPinned ? 'Window is pinned' : 'Window is unpinned'}
+                                            {isPinned ? 'Окно закреплено' : 'Окно не закреплено'}
                                         </span>
                                     </div>
                                 </div>
@@ -173,7 +173,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     {/* Preferences Section */}
                     <div className="p-3">
                         <h3 className="text-xs font-bold text-secondary uppercase tracking-wider mb-2 px-2">
-                            Preferences
+                            Настройки
                         </h3>
                         <div className="space-y-1">
                             <button
@@ -185,9 +185,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         {settings.soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
                                     </div>
                                     <div className="text-left">
-                                        <span className="font-medium block">Sound Effects</span>
+                                        <span className="font-medium block">Звуки</span>
                                         <span className="text-xs text-secondary opacity-70">
-                                            {settings.soundEnabled ? 'Enabled' : 'Disabled'}
+                                            {settings.soundEnabled ? 'Включены' : 'Выключены'}
                                         </span>
                                     </div>
                                 </div>
@@ -205,9 +205,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                         <Volume2 size={18} className={isAmbientPlaying ? 'animate-pulse' : ''} />
                                     </div>
                                     <div className="text-left">
-                                        <span className="font-medium block">Ambient Focus</span>
+                                        <span className="font-medium block">Фоновый шум</span>
                                         <span className="text-xs text-secondary opacity-70">
-                                            {isAmbientPlaying ? 'Brown Noise ON' : 'Off'}
+                                            {isAmbientPlaying ? 'Коричневый шум ВКЛ' : 'Выкл'}
                                         </span>
                                     </div>
                                 </div>
@@ -221,7 +221,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <div className="p-4 bg-white/5 text-center">
                     <p className="text-xs text-secondary opacity-50">
-                        ZenManager v0.3.0
+                        Сам Себе DMCA v0.4.0
                     </p>
                 </div>
             </motion.div>

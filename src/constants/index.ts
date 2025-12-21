@@ -114,6 +114,7 @@ export const ACHIEVEMENTS: Achievement[] = [
 export const PRIORITY_CONFIG = {
     high: {
         label: 'Высокий',
+        icon: '🔥',
         color: 'text-error',
         indicator: 'bg-error',
         border: 'border-error',
@@ -123,6 +124,7 @@ export const PRIORITY_CONFIG = {
     },
     normal: {
         label: 'Обычный',
+        icon: '🔹',
         color: 'text-primary',
         indicator: 'bg-primary',
         border: 'border-primary',
@@ -132,6 +134,7 @@ export const PRIORITY_CONFIG = {
     },
     low: {
         label: 'Низкий',
+        icon: '☕',
         color: 'text-success',
         indicator: 'bg-success',
         border: 'border-success',

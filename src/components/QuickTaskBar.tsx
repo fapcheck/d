@@ -146,7 +146,7 @@ export const QuickTaskBar: React.FC<QuickTaskBarProps> = ({ clients, onAddTaskTo
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Task description (use !high, ~30m, #project)..."
+                        placeholder="Описание задачи (!high, ~30m, #проект)..."
                         className="flex-1 w-full bg-transparent text-white px-4 py-3 outline-none placeholder-secondary/30 font-light tracking-wide"
                     />
 

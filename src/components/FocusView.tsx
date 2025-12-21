@@ -83,16 +83,19 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
     });
 
     if (allCandidates.length === 0) {
-      // If all tasks are skipped, reset skipped list
-      if (skippedTasks.size > 0) {
-        setSkippedTasks(new Set());
-      }
       return null;
     }
 
     allCandidates.sort((a, b) => b.score - a.score);
     return allCandidates[0];
   }, [clients, skippedTasks]);
+
+  // Reset skipped tasks when all tasks have been skipped
+  useEffect(() => {
+    if (focusItem === null && skippedTasks.size > 0) {
+      setSkippedTasks(new Set());
+    }
+  }, [focusItem, skippedTasks.size]);
 
   // Skip current task - moves to next without completing
   const handleSkip = useCallback(() => {
@@ -118,8 +121,8 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
         await document.exitFullscreen();
         setIsFullscreen(false);
       }
-    } catch (err) {
-      console.error("Fullscreen toggle failed:", err);
+    } catch {
+      // Fullscreen may fail silently on some browsers/devices
     }
   }, []);
 
@@ -182,7 +185,7 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
             {/* Context Badge */}
             <div className={`mb-6 inline-flex items-center gap-2 px-6 py-2 rounded-full bg-primary/10 text-primary text-sm font-bold tracking-widest uppercase border border-primary/20 ${isFullscreen ? 'scale-125 origin-bottom' : ''}`}>
               <Target size={14} />
-              Current Focus
+              Текущий фокус
             </div>
 
             {/* Main Card */}
@@ -198,7 +201,7 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
 
               <div className="relative z-10 flex flex-col items-center">
                 <h3 className="text-secondary mb-6 text-lg tracking-wide flex items-center gap-2">
-                  <span className="opacity-50">Project</span>
+                  <span className="opacity-50">Проект</span>
                   <ArrowRight size={14} className="opacity-30" />
                   <span className="text-white font-semibold">{focusItem.client.name}</span>
                 </h3>
@@ -236,7 +239,7 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
                     className="flex-1 bg-white/5 hover:bg-white/10 text-secondary hover:text-white rounded-2xl px-6 py-4 font-medium transition-all flex items-center justify-center gap-2"
                   >
                     <SkipForward size={18} />
-                    Skip
+                    Пропустить
                   </button>
 
                   <button
@@ -244,13 +247,13 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
                     className="flex-[2] bg-success hover:bg-success/90 text-[#0f1117] font-bold rounded-2xl flex items-center justify-center gap-3 transition-transform active:scale-95 shadow-lg shadow-success/20 px-6 py-4 text-lg"
                   >
                     <CheckCircle2 size={24} />
-                    <span>Done</span>
+                    <span>Готово</span>
                   </button>
                 </div>
 
                 {isFullscreen && (
                   <p className="mt-6 text-xs text-secondary/40 font-mono">
-                    Press SPACE to complete • ESC to skip
+                    ПРОБЕЛ - завершить • ESC - пропустить
                   </p>
                 )}
               </div>
@@ -259,7 +262,7 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
             {/* Skipped indicator */}
             {skippedTasks.size > 0 && (
               <p className="text-xs text-secondary/50 mb-4">
-                {skippedTasks.size} task{skippedTasks.size > 1 ? 's' : ''} skipped
+                {skippedTasks.size} {skippedTasks.size === 1 ? 'задача пропущена' : 'задач пропущено'}
               </p>
             )}
           </motion.div>
@@ -280,10 +283,10 @@ export const FocusView: React.FC<FocusViewProps> = ({ clients, onToggleTask }) =
               <Coffee size={48} className="text-success" />
             </motion.div>
             <h2 className={`text-white font-bold mb-4 ${isFullscreen ? 'text-5xl' : 'text-3xl'}`}>
-              All Clear
+              Всё чисто
             </h2>
             <p className={`text-secondary max-w-md mx-auto ${isFullscreen ? 'text-xl' : 'text-base'}`}>
-              No active tasks. Enjoy the moment of peace or create a new plan.
+              Нет активных задач. Наслаждайтесь моментом покоя или создайте новый план.
             </p>
           </motion.div>
         )}

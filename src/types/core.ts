@@ -32,12 +32,21 @@ export interface Task {
     predictedTime?: number;
 }
 
+/** Элемент списка (заметка или аккаунт) */
+export interface NoteItem {
+    id: number;
+    content: string;
+    createdAt: number;
+    isPinned?: boolean;
+}
+
 /** Клиент/Проект - группа связанных задач */
 export interface Client {
     id: number;
     name: string;
     priority: Priority;
-    notes: string;
+    notes: NoteItem[];
+    accounts: NoteItem[]; // Renamed from accounts_notes
     tasks: Task[];
     createdAt: number;
     /** Целевая дата завершения проекта */

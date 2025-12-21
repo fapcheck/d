@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
 
 body {
   background-color: #0f1117;
@@ -20,18 +20,29 @@ body {
   @apply hover:bg-[#1f2430]/80 hover:border-white/[0.08] transition-all duration-300;
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { 
-  background: #30363d; 
-  border-radius: 10px; 
+::-webkit-scrollbar {
+  width: 6px;
 }
-::-webkit-scrollbar-thumb:hover { background: #444c56; }
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444c56;
+}
 
 *:focus {
   outline: none;
 }
-input:focus, textarea:focus {
+
+input:focus,
+textarea:focus {
   @apply ring-1 ring-primary/30 border-primary/30;
 }
 

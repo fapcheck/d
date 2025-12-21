@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Trash2, GripVertical, Pencil, X, Check, Calendar, MessageCircle, Clock } from 'lucide-react';
@@ -115,18 +116,48 @@ export const SortableTaskItem = React.memo<SortableTaskItemProps>(({
       </div>
 
       <div className="flex items-center gap-4 flex-1 min-w-0">
-        <button
+        <motion.button
           onClick={onToggle}
-          className={`
-            w-6 h-6 rounded-full border-2 transition-all shrink-0 flex items-center justify-center
-            ${task.isDone
-              ? 'bg-success border-success'
-              : 'border-secondary/50 hover:border-success hover:bg-success/10'
-            }
-          `}
+          className="relative w-7 h-7 shrink-0 flex items-center justify-center"
+          whileTap={{ scale: 0.9 }}
         >
-          {task.isDone && <Check size={14} className="text-bg stroke-[3]" />}
-        </button>
+          {/* Background circle */}
+          <svg className="absolute w-7 h-7" viewBox="0 0 28 28">
+            <circle
+              cx="14"
+              cy="14"
+              r="12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-secondary/30"
+            />
+            {/* Animated progress ring */}
+            <motion.circle
+              cx="14"
+              cy="14"
+              r="12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              className="text-success"
+              strokeDasharray="75.4"
+              initial={{ strokeDashoffset: task.isDone ? 0 : 75.4 }}
+              animate={{ strokeDashoffset: task.isDone ? 0 : 75.4 }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              style={{ transformOrigin: 'center', transform: 'rotate(-90deg)' }}
+            />
+          </svg>
+          {/* Check icon */}
+          <motion.div
+            initial={{ scale: task.isDone ? 1 : 0, opacity: task.isDone ? 1 : 0 }}
+            animate={{ scale: task.isDone ? 1 : 0, opacity: task.isDone ? 1 : 0 }}
+            transition={{ duration: 0.2, delay: task.isDone ? 0.2 : 0 }}
+          >
+            <Check size={14} className="text-success stroke-[3]" />
+          </motion.div>
+        </motion.button>
 
         <div className="flex-1 min-w-0 mr-2">
           {isEditing ? (
@@ -147,8 +178,8 @@ export const SortableTaskItem = React.memo<SortableTaskItemProps>(({
                       key={p}
                       onClick={() => onUpdatePriority(p)}
                       className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all ${task.priority === p
-                          ? `${PRIORITY_CONFIG[p].bg} ${PRIORITY_CONFIG[p].color} shadow-sm`
-                          : 'text-secondary hover:text-white hover:bg-white/5'
+                        ? `${PRIORITY_CONFIG[p].bg} ${PRIORITY_CONFIG[p].color} shadow-sm`
+                        : 'text-secondary hover:text-white hover:bg-white/5'
                         }`}
                     >
                       {PRIORITY_CONFIG[p].label}
@@ -166,8 +197,8 @@ export const SortableTaskItem = React.memo<SortableTaskItemProps>(({
                         key={e}
                         onClick={() => onUpdateEffort(e)}
                         className={`p-1 rounded transition-all flex items-center gap-1 ${task.effort === e
-                            ? 'bg-white/10 text-white shadow-sm'
-                            : 'text-secondary hover:text-white hover:bg-white/5'
+                          ? 'bg-white/10 text-white shadow-sm'
+                          : 'text-secondary hover:text-white hover:bg-white/5'
                           }`}
                         title={EFFORT_CONFIG[e].label}
                       >
@@ -211,9 +242,9 @@ export const SortableTaskItem = React.memo<SortableTaskItemProps>(({
               {/* НОВЫЙ: Индикатор даты */}
               {task.dueDate && (
                 <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded border ${dateStatus === 'overdue' ? 'bg-error/20 text-error border-error/30' :
-                    dateStatus === 'today' ? 'bg-warning/20 text-warning border-warning/30' :
-                      dateStatus === 'tomorrow' ? 'bg-success/20 text-success border-success/30' :
-                        'bg-white/5 text-secondary border-white/10'
+                  dateStatus === 'today' ? 'bg-warning/20 text-warning border-warning/30' :
+                    dateStatus === 'tomorrow' ? 'bg-success/20 text-success border-success/30' :
+                      'bg-white/5 text-secondary border-white/10'
                   }`}>
                   <Calendar size={10} />
                   {dateDisplay}
@@ -264,3 +295,5 @@ export const SortableTaskItem = React.memo<SortableTaskItemProps>(({
     </div>
   );
 });
+
+SortableTaskItem.displayName = 'SortableTaskItem';

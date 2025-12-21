@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS, DB_FILENAME, ACHIEVEMENTS } from '../constants';
 import { DateUtils, GamificationUtils, AnalyticsUtils } from '../utils';
 import type {
   Client, Task, Priority, Effort, AppSettings, Comment, UserProgress, Achievement, UserStats,
-  FocusSession, HistoryEntry, HistoryData
+  FocusSession, HistoryEntry, HistoryData, NoteItem
 } from '../types';
 import { useAudioEngine } from './useAudioEngine';
 import { useConfetti } from './useConfetti';
@@ -42,7 +42,8 @@ const normalizeClient = (v: unknown): Client | null => {
     id: obj.id,
     name: obj.name,
     priority: (['high', 'normal', 'low'] as const).includes(obj.priority as Priority) ? (obj.priority as Priority) : 'normal',
-    notes: typeof obj.notes === 'string' ? obj.notes : '',
+    notes: Array.isArray(obj.notes) ? obj.notes : (typeof obj.notes === 'string' && obj.notes ? [{ id: Date.now(), content: obj.notes, createdAt: Date.now() }] : []),
+    accounts: Array.isArray(obj.accounts) ? obj.accounts : (typeof obj.accounts_notes === 'string' && obj.accounts_notes ? [{ id: Date.now() + 1, content: obj.accounts_notes, createdAt: Date.now() }] : []),
     tasks,
     createdAt: typeof obj.createdAt === 'number' ? obj.createdAt : Date.now(),
     targetCompletionDate: typeof obj.targetCompletionDate === 'number' ? obj.targetCompletionDate : undefined
@@ -190,8 +191,8 @@ export function useZenData() {
         if (localSessions) setFocusSessions(JSON.parse(localSessions));
 
         setClients(loadedClients.sort((a, b) => a.id - b.id));
-      } catch (err) {
-        console.error('Critical error loading data:', err);
+      } catch {
+        // Critical error loading data - app will show empty state
       } finally {
         setIsLoaded(true);
       }
@@ -214,8 +215,8 @@ export function useZenData() {
       } catch (e) {
         localStorage.setItem('zen_backup_web', content);
       }
-    } catch (error) {
-      console.error("Save failed:", error);
+    } catch {
+      // Save failed silently - data will be retried on next change
     } finally {
       isSaving.current = false;
       if (saveQueue.current) {
@@ -308,7 +309,7 @@ export function useZenData() {
       if (permissionGranted) {
         sendNotification({ title: 'Zen Manager', body: `Готово: ${title} 🎉` });
       }
-    } catch (e) { console.error("Notification error", e); }
+    } catch { /* Notification permission denied or unavailable */ }
   }, []);
 
   const addToHistory = useCallback((type: HistoryEntry['type'], description: string, data: HistoryData, clientId?: number, taskId?: number) => {
@@ -409,9 +410,10 @@ export function useZenData() {
   }, [applyChange]);
 
   const actions = useMemo(() => ({
+    sendSystemNotification,
     addClient: (name: string, priority: Priority) => {
       const newClient: Client = {
-        id: Date.now(), name: name.trim(), priority, notes: '', tasks: [], createdAt: Date.now()
+        id: Date.now(), name: name.trim(), priority, notes: [], accounts: [], tasks: [], createdAt: Date.now()
       };
       setClients(prev => [...prev, newClient]);
       addToHistory('client_add', `Added project "${newClient.name}"`, newClient as any, newClient.id);
@@ -427,8 +429,23 @@ export function useZenData() {
     updateClientPriority: (id: number, priority: Priority) => {
       setClients(prev => prev.map(c => c.id === id ? { ...c, priority } : c));
     },
-    updateClientNotes: (id: number, notes: string) => {
-      setClients(prev => prev.map(c => c.id === id ? { ...c, notes } : c));
+    addNote: (clientId: number, content: string) => {
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, notes: [{ id: Date.now(), content, createdAt: Date.now() }, ...c.notes] } : c));
+    },
+    deleteNote: (clientId: number, noteId: number) => {
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, notes: c.notes.filter(n => n.id !== noteId) } : c));
+    },
+    updateNote: (clientId: number, noteId: number, content: string) => {
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, notes: c.notes.map(n => n.id === noteId ? { ...n, content } : n) } : c));
+    },
+    addAccount: (clientId: number, content: string) => {
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, accounts: [{ id: Date.now(), content, createdAt: Date.now() }, ...c.accounts] } : c));
+    },
+    deleteAccount: (clientId: number, accountId: number) => {
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, accounts: c.accounts.filter(a => a.id !== accountId) } : c));
+    },
+    updateAccount: (clientId: number, accountId: number, content: string) => {
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, accounts: c.accounts.map(a => a.id === accountId ? { ...a, content } : a) } : c));
     },
     addTask: (clientId: number, title: string, priority: Priority, effort: Effort) => {
       const newTask: Task = {

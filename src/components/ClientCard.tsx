@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, ListTodo, CheckSquare, ChevronDown, X, Check } from 'lucide-react';
 import { PRIORITY_CONFIG } from '../constants';
 import type { Client, Priority } from '../types';
+import { createPortal } from 'react-dom';
 
 interface ClientCardProps {
   client: Client;
@@ -39,9 +40,9 @@ export const ClientCard = React.memo<ClientCardProps>(({ client, onClick, onRemo
       whileHover={{ y: -2, scale: 1.01 }}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
-      className="glass glass-hover relative p-5 rounded-xl cursor-pointer group overflow-hidden shadow-sm hover:shadow-zen"
+      className="glass glass-hover relative p-5 rounded-xl cursor-pointer group shadow-sm hover:shadow-zen hover:z-[100] transition-all"
     >
-      <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${indicatorColor} opacity-70 group-hover:opacity-100 transition-opacity`}></div>
+      <div className={`absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl ${indicatorColor} opacity-70 group-hover:opacity-100 transition-opacity`}></div>
 
       <div className="flex justify-between items-start mb-3 pl-2">
         <h3 className="text-lg font-semibold text-gray-200 group-hover:text-white transition-colors truncate pr-2 flex-1 tracking-wide">
@@ -89,27 +90,121 @@ export const ClientCard = React.memo<ClientCardProps>(({ client, onClick, onRemo
         </div>
       </div>
 
-      <div className="pl-2">
-        <div className="relative group/prio inline-block w-full" onClick={(e) => e.stopPropagation()}>
-          <select
-            value={client.priority}
-            onChange={(e) => onUpdatePriority(client.id, e.target.value as Priority)}
-            className={`
-                  appearance-none w-full bg-transparent text-xs font-bold uppercase cursor-pointer outline-none 
-                  py-1 pr-4 transition-colors tracking-wider
-                  ${PRIORITY_CONFIG[client.priority].color}
-                  opacity-70 group-hover/prio:opacity-100
-                `}
-          >
-            <option value="high" className="bg-surface text-error">🔥 Высокий</option>
-            <option value="normal" className="bg-surface text-primary">🔹 Обычный</option>
-            <option value="low" className="bg-surface text-success">☕ Низкий</option>
-          </select>
-          <div className={`absolute left-[-12px] top-1/2 -translate-y-1/2 pointer-events-none opacity-0 group-hover/prio:opacity-100 transition-opacity ${PRIORITY_CONFIG[client.priority].color}`}>
-            <ChevronDown size={10} className="-rotate-90" />
-          </div>
-        </div>
+      <div className="pl-2 mt-auto relative" onClick={(e) => e.stopPropagation()}>
+        <PriorityDropdown
+          currentPriority={client.priority}
+          onUpdate={(p) => onUpdatePriority(client.id, p)}
+        />
       </div>
     </motion.div>
   );
 });
+
+const PriorityDropdown = ({ currentPriority, onUpdate }: { currentPriority: Priority, onUpdate: (p: Priority) => void }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+  const config = PRIORITY_CONFIG[currentPriority];
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (
+        isOpen &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleScroll = () => {
+      if (isOpen) setIsOpen(false);
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('scroll', handleScroll, true);
+      window.addEventListener('resize', handleScroll);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [isOpen]);
+
+  const toggleDropdown = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: Math.max(rect.width, 140)
+      });
+    }
+    setIsOpen(!isOpen);
+  };
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        onClick={toggleDropdown}
+        className={`
+          flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all
+          border border-transparent
+          ${isOpen ? 'bg-white/10 text-white border-white/10' : `${config.color} hover:bg-white/5`}
+        `}
+      >
+        <span className="text-sm">{config.icon}</span>
+        {config.label}
+        <ChevronDown size={12} className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && createPortal(
+        <AnimatePresence>
+          <motion.div
+            ref={dropdownRef}
+            initial={{ opacity: 0, y: -8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            style={{
+              top: coords.top,
+              left: coords.left,
+              minWidth: coords.width,
+              position: 'fixed'
+            }}
+            className="bg-[#1C2128] rounded-xl border border-white/10 shadow-2xl overflow-hidden z-[9999] flex flex-col gap-1 p-1"
+          >
+            {(['high', 'normal', 'low'] as Priority[]).map((p) => (
+              <button
+                key={p}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpdate(p);
+                  setIsOpen(false);
+                }}
+                className={`
+                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all w-full text-left
+                  hover:bg-white/10 whitespace-nowrap
+                  ${p === currentPriority ? 'bg-white/5 text-white' : PRIORITY_CONFIG[p].color}
+                `}
+              >
+                <span className="text-sm">{PRIORITY_CONFIG[p].icon}</span>
+                {PRIORITY_CONFIG[p].label}
+              </button>
+            ))}
+          </motion.div>
+        </AnimatePresence>,
+        document.body
+      )}
+    </>
+  );
+};
+
+ClientCard.displayName = 'ClientCard';

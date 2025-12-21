@@ -185,11 +185,19 @@ export interface Task {
   predictedTime?: number; // НОВОЕ: предсказанное время в минутах
 }
 
+export interface NoteItem {
+  id: number;
+  content: string;
+  createdAt: number;
+  isPinned?: boolean;
+}
+
 export interface Client {
   id: number;
   name: string;
   priority: Priority;
-  notes: string;
+  notes: NoteItem[];
+  accounts: NoteItem[];
   tasks: Task[];
   createdAt: number;
   targetCompletionDate?: number; // НОВОЕ: целевая дата завершения проекта

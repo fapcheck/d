@@ -110,7 +110,8 @@ export const StatsDashboard = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
           icon={Target}
-          iconColor="bg-primary/20"
+          bgColor="bg-primary/20"
+          textColor="text-primary"
           title="Tasks Completed"
           value={stats.completedTasks}
           subtitle={`of ${stats.totalTasks} total (${Math.round(stats.completionRate)}%)`}
@@ -118,7 +119,8 @@ export const StatsDashboard = ({
         />
         <StatsCard
           icon={Award}
-          iconColor="bg-yellow-400/20"
+          bgColor="bg-yellow-400/20"
+          textColor="text-yellow-400"
           title="Points"
           value={stats.totalPoints}
           subtitle={`Average: ${stats.completedTasks > 0 ? Math.round(stats.totalPoints / stats.completedTasks) : 0} per task`}
@@ -126,7 +128,8 @@ export const StatsDashboard = ({
         />
         <StatsCard
           icon={Clock}
-          iconColor="bg-purple-400/20"
+          bgColor="bg-purple-400/20"
+          textColor="text-purple-400"
           title="Focus Time"
           value={`${Math.round(stats.totalFocusTime)} min`}
           subtitle={`${focusSessions.length} sessions`}
@@ -134,7 +137,8 @@ export const StatsDashboard = ({
         />
         <StatsCard
           icon={Activity}
-          iconColor="bg-green-400/20"
+          bgColor="bg-green-400/20"
+          textColor="text-green-400"
           title="Avg Productivity"
           value={dateRange.length > 0 ? Math.round(stats.totalTasks / dateRange.length * 10) / 10 : 0}
           subtitle="tasks per day"

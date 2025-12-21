@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Heart, Activity, AlertTriangle, Brain, TrendingUp, TrendingDown, Minus, Clock, Target, Calendar } from 'lucide-react';
+import { Heart, Activity, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { HEALTH_LEVELS } from '../constants';
 import type { ProductivityHealth } from '../types';
 
@@ -122,8 +122,8 @@ export const ProductivityHealthIndicator: React.FC<ProductivityHealthProps> = ({
             >
               <div className="flex items-start gap-3">
                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${rec.priority === 'high' ? 'bg-red-500/20 text-red-400' :
-                    rec.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                      'bg-gray-500/20 text-gray-400'
+                  rec.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                    'bg-gray-500/20 text-gray-400'
                   }`}>
                   {rec.priority === 'high' ? '!' : rec.priority === 'medium' ? '•' : '○'}
                 </div>

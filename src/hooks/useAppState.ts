@@ -8,7 +8,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Priority, Effort, Client } from '../types';
 
 export type ViewMode = 'dashboard' | 'focus' | 'analytics' | 'review';
-export type ClientTab = 'active' | 'archive' | 'notes';
+export type ClientTab = 'active' | 'accounts' | 'archive' | 'notes' | 'dmca';
 
 interface CommentsModalState {
     isOpen: boolean;
@@ -58,6 +58,10 @@ export function useAppState({ clients }: UseAppStateProps) {
     const [newTaskTitle, setNewTaskTitle] = useState('');
     const [newTaskPriority, setNewTaskPriority] = useState<Priority>('normal');
     const [newTaskEffort, setNewTaskEffort] = useState<Effort>('quick');
+
+    const [newNoteContent, setNewNoteContent] = useState('');
+    const [newAccountContent, setNewAccountContent] = useState('');
+    const [dmcaContent, setDmcaContent] = useState('');
 
     // --- Derived State ---
     const selectedClient = useMemo(
@@ -116,8 +120,8 @@ export function useAppState({ clients }: UseAppStateProps) {
             const newValue = !isPinned;
             await getCurrentWindow().setAlwaysOnTop(newValue);
             setIsPinned(newValue);
-        } catch (error) {
-            console.error('Failed to toggle always on top:', error);
+        } catch {
+            // Tauri API may not be available in web mode
         }
     }, [isPinned]);
 
@@ -145,9 +149,14 @@ export function useAppState({ clients }: UseAppStateProps) {
         setNewTaskEffort('quick');
     }, []);
 
+    const resetNoteForm = useCallback(() => setNewNoteContent(''), []);
+    const resetAccountForm = useCallback(() => setNewAccountContent(''), []);
+    const resetDmcaForm = useCallback(() => setDmcaContent(''), []);
+
     const selectClient = useCallback((id: number) => {
         setSelectedClientId(id);
         setClientTab('active');
+        setDmcaContent('');
     }, []);
 
     const goToDashboard = useCallback(() => {
@@ -205,5 +214,14 @@ export function useAppState({ clients }: UseAppStateProps) {
         activeTasks,
         groupedClients,
         copyReport,
+        newNoteContent,
+        setNewNoteContent,
+        newAccountContent,
+        setNewAccountContent,
+        resetNoteForm,
+        resetAccountForm,
+        dmcaContent,
+        setDmcaContent,
+        resetDmcaForm,
     };
 }

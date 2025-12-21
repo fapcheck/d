@@ -75,7 +75,7 @@ export const calculateProjectStats = (clients: Client[]): ProjectStats[] => {
             const avgTimeSpent = tasksOfPriority.reduce((acc, t) => acc + (t.timeSpent || 0), 0) / (tasksOfPriority.length || 1);
 
             return {
-                priority: p as any,
+                priority: p as 'high' | 'normal' | 'low',
                 count,
                 percentage: totalTasks > 0 ? (count / totalTasks) * 100 : 0,
                 avgTimeSpent

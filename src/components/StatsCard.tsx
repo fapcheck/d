@@ -9,8 +9,10 @@ import type { LucideIcon } from 'lucide-react';
 interface StatsCardProps {
     /** Иконка карточки */
     icon: LucideIcon;
-    /** Цвет иконки и фона (tailwind класс) */
-    iconColor: string;
+    /** Цвет фона иконки (tailwind класс, например 'bg-primary/20') */
+    bgColor: string;
+    /** Цвет иконки (tailwind класс, например 'text-primary') */
+    textColor: string;
     /** Заголовок метрики */
     title: string;
     /** Основное значение */
@@ -26,7 +28,8 @@ interface StatsCardProps {
  */
 export const StatsCard: React.FC<StatsCardProps> = ({
     icon: Icon,
-    iconColor,
+    bgColor,
+    textColor,
     title,
     value,
     subtitle,
@@ -40,8 +43,8 @@ export const StatsCard: React.FC<StatsCardProps> = ({
             className="glass p-6 rounded-2xl border border-white/5"
         >
             <div className="flex items-center gap-3 mb-4">
-                <div className={`w-10 h-10 ${iconColor.includes('bg-') ? iconColor : `bg-${iconColor}/20`} rounded-xl flex items-center justify-center`}>
-                    <Icon className={iconColor.replace('bg-', 'text-').replace('/20', '')} size={20} />
+                <div className={`w-10 h-10 ${bgColor} rounded-xl flex items-center justify-center`}>
+                    <Icon className={textColor} size={20} />
                 </div>
                 <div>
                     <h3 className="text-sm font-medium text-secondary">{title}</h3>
