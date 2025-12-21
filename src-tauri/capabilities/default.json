@@ -2,10 +2,21 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "notification:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        {
+          "url": "https://api.groq.com/*"
+        }
+      ],
+      "deny": []
+    },
     "fs:allow-write-text-file",
     "fs:allow-read-text-file",
     "fs:allow-exists",

@@ -8,7 +8,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { Priority, Effort, Client } from '../types';
 
 export type ViewMode = 'dashboard' | 'focus' | 'analytics' | 'review';
-export type ClientTab = 'active' | 'accounts' | 'archive' | 'notes' | 'dmca';
+export type ClientTab = 'active' | 'accounts' | 'archive' | 'notes' | 'dmca' | 'profile';
 
 interface CommentsModalState {
     isOpen: boolean;
@@ -62,6 +62,7 @@ export function useAppState({ clients }: UseAppStateProps) {
     const [newNoteContent, setNewNoteContent] = useState('');
     const [newAccountContent, setNewAccountContent] = useState('');
     const [dmcaContent, setDmcaContent] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
 
     // --- Derived State ---
     const selectedClient = useMemo(
@@ -223,5 +224,7 @@ export function useAppState({ clients }: UseAppStateProps) {
         dmcaContent,
         setDmcaContent,
         resetDmcaForm,
+        isGenerating,
+        setIsGenerating,
     };
 }

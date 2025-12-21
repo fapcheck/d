@@ -170,6 +170,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                     <div className="h-px bg-white/5 mx-4" />
 
+                    {/* AI Settings Section */}
+                    <div className="p-3">
+                        <h3 className="text-xs font-bold text-secondary uppercase tracking-wider mb-2 px-2">
+                            AI Integration
+                        </h3>
+                        <div className="px-2">
+                            <label className="text-xs text-secondary mb-1 block">Groq API Key</label>
+                            <input
+                                type="password"
+                                value={settings.groqApiKey || ''}
+                                onChange={(e) => onUpdateSettings({ ...settings, groqApiKey: e.target.value })}
+                                placeholder="Paste gsk_... key"
+                                className="w-full bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors placeholder-white/20"
+                            />
+                            <p className="text-[10px] text-secondary/50 mt-1">Required for DMCA generator (llama-3.3-70b).</p>
+                        </div>
+                    </div>
+
+                    <div className="h-px bg-white/5 mx-4" />
+
                     {/* Preferences Section */}
                     <div className="p-3">
                         <h3 className="text-xs font-bold text-secondary uppercase tracking-wider mb-2 px-2">

@@ -447,6 +447,9 @@ export function useZenData() {
     updateAccount: (clientId: number, accountId: number, content: string) => {
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, accounts: c.accounts.map(a => a.id === accountId ? { ...a, content } : a) } : c));
     },
+    updateClientProfile: (clientId: number, profile: any) => {
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, dmcaProfile: profile } : c));
+    },
     addTask: (clientId: number, title: string, priority: Priority, effort: Effort) => {
       const newTask: Task = {
         id: Date.now(), title: title.trim(), isDone: false, priority, effort,
@@ -605,9 +608,37 @@ export function useZenData() {
       setSettings(next);
       localStorage.setItem('zen_settings', JSON.stringify(next));
     },
-    updateSettings: (newSettings: AppSettings) => {
-      setSettings(newSettings);
-      localStorage.setItem('zen_settings', JSON.stringify(newSettings));
+    updateSettings: (newSettings: Partial<AppSettings>) => {
+      setSettings(prev => {
+        const next = { ...prev, ...newSettings };
+        localStorage.setItem('zen_settings', JSON.stringify(next));
+        return next;
+      });
+    },
+    addDmcaSite: (site: string) => {
+      setSettings(prev => {
+        const currentSites = prev.dmcaSites || [];
+        if (currentSites.includes(site)) return prev;
+        const updated = { ...prev, dmcaSites: [...currentSites, site].sort() };
+        localStorage.setItem('zen_settings', JSON.stringify(updated));
+        return updated;
+      });
+    },
+    removeDmcaSite: (site: string) => {
+      setSettings(prev => {
+        const updated = { ...prev, dmcaSites: (prev.dmcaSites || []).filter(s => s !== site) };
+        localStorage.setItem('zen_settings', JSON.stringify(updated));
+        return updated;
+      });
+    },
+    renameDmcaSite: (oldName: string, newName: string) => {
+      setSettings(prev => {
+        const currentSites = prev.dmcaSites || [];
+        const updatedSites = currentSites.map(s => s === oldName ? newName.trim() : s).sort();
+        const updated = { ...prev, dmcaSites: updatedSites };
+        localStorage.setItem('zen_settings', JSON.stringify(updated));
+        return updated;
+      });
     },
     exportData: () => {
       const blob = new Blob([JSON.stringify(clientsRef.current, null, 2)], { type: "application/json" });

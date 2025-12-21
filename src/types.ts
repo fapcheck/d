@@ -192,12 +192,21 @@ export interface NoteItem {
   isPinned?: boolean;
 }
 
+export interface DmcaProfile {
+  legalName: string;
+  address: string;
+  email: string;
+  phone: string; // НОВОЕ
+  contentSourceUrl?: string;
+}
+
 export interface Client {
   id: number;
   name: string;
   priority: Priority;
   notes: NoteItem[];
   accounts: NoteItem[];
+  dmcaProfile?: DmcaProfile; // НОВОЕ: Профиль для DMCA
   tasks: Task[];
   createdAt: number;
   targetCompletionDate?: number; // НОВОЕ: целевая дата завершения проекта
@@ -205,6 +214,8 @@ export interface Client {
 
 export interface AppSettings {
   soundEnabled: boolean;
+  groqApiKey?: string;
+  dmcaSites?: string[]; // НОВОЕ: список сайтов для DMCA
 }
 
 export interface UserProgress {

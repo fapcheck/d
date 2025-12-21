@@ -211,4 +211,5 @@ export const HEALTH_LEVELS = {
 
 export const DEFAULT_SETTINGS = {
     soundEnabled: true,
+    groqApiKey: '',
 };
