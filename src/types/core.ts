@@ -40,13 +40,23 @@ export interface NoteItem {
     isPinned?: boolean;
 }
 
+/** Профиль для DMCA запросов */
+export interface DmcaProfile {
+    legalName: string;
+    address: string;
+    email: string;
+    phone: string;
+    contentSourceUrl?: string;
+}
+
 /** Клиент/Проект - группа связанных задач */
 export interface Client {
     id: number;
     name: string;
     priority: Priority;
     notes: NoteItem[];
-    accounts: NoteItem[]; // Renamed from accounts_notes
+    accounts: NoteItem[];
+    dmcaProfile?: DmcaProfile;
     tasks: Task[];
     createdAt: number;
     /** Целевая дата завершения проекта */
@@ -56,6 +66,9 @@ export interface Client {
 /** Настройки приложения */
 export interface AppSettings {
     soundEnabled: boolean;
+    groqApiKey?: string;
+    dmcaSites?: string[];
+    dmcaHostings?: string[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {

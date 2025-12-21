@@ -21,6 +21,8 @@ import { ClientSection } from './components/ClientSection';
 import { StatsDashboard } from './components/StatsDashboard';
 import { AchievementsModal } from './components/AchievementsModal';
 import { WeeklyReview } from './components/WeeklyReview';
+import { DmcaGenerator } from './components/DmcaGenerator';
+import { ProfileEditor } from './components/ProfileEditor';
 import { PRIORITY_CONFIG } from './constants';
 import { StreakFlame } from './components/StreakFlame';
 import { SimpleListItem } from './components/SimpleListItem';
@@ -123,7 +125,7 @@ function AppContent() {
 
   // --- Default Sites Initialization ---
   useEffect(() => {
-    if (settings.dmcaSites === undefined && (actions as any).updateSettings) {
+    if (settings.dmcaSites === undefined && actions.updateSettings) {
       const defaultSites = [
         "allmycams", "alphavids", "archivebate", "bestcamtv", "camhubcc",
         "camripscom", "camshow0ws", "camshowdownload", "camshowrecorded",
@@ -131,7 +133,7 @@ function AppContent() {
         "camwhores", "cb2cam", "chaturflix", "Generic / Other"
       ];
       // Only set if not already present (undefined check handled above)
-      (actions as any).updateSettings({ dmcaSites: defaultSites });
+      actions.updateSettings({ dmcaSites: defaultSites });
     }
   }, [settings.dmcaSites, actions]);
 
@@ -419,307 +421,28 @@ function AppContent() {
                 {clientTab === 'archive' && (
                   <motion.div key="archive" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6 flex-1 overflow-y-auto pr-2"><div className="flex justify-end"><button onClick={copyReport} className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-lg ${copiedId ? 'bg-success/20 text-success border border-success/30' : 'glass hover:bg-white/10 text-secondary'}`}>{copiedId ? <Check size={14} /> : <Copy size={14} />} {copiedId ? 'Скопировано' : 'Копировать отчёт'}</button></div><div className="space-y-2 pb-10">{selectedClient.tasks.filter(t => t.isDone).length === 0 ? <div className="text-center py-20 text-secondary/30 font-light">Архив пуст</div> : selectedClient.tasks.filter(t => t.isDone).map(task => (<div key={task.id} className="glass p-4 rounded-xl flex items-center gap-4 group hover:bg-white/[0.03] transition-colors border border-transparent hover:border-white/5"><div className="text-success/50"><CheckCircle2 size={18} /></div><div className="flex-1 text-secondary line-through decoration-white/10 text-sm">{task.title}</div><button onClick={() => actions.toggleTask(selectedClient.id, task.id)} className="text-xs text-secondary hover:text-white opacity-0 group-hover:opacity-100 underline transition-opacity">Восстановить</button><button onClick={() => actions.deleteTask(selectedClient.id, task.id)} className="text-secondary hover:text-error opacity-0 group-hover:opacity-100 transition-opacity ml-4 p-2"><Trash2 size={16} /></button></div>))}</div></motion.div>
                 )}
-                {clientTab === 'dmca' && (
-                  <motion.div
-                    key="dmca-tab"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="flex flex-col gap-6 flex-1 overflow-hidden"
-                  >
-                    {/* Generator Controls (The "Cool Look") */}
-                    <div className="glass p-6 rounded-2xl border border-white/5 flex items-center justify-between gap-6 relative overflow-hidden group">
-                      <div className="absolute inset-0 bg-primary/5 group-hover:bg-primary/10 transition-colors duration-500"></div>
-
-                      <div className="flex-1 z-10">
-                        <label className="text-secondary/60 text-xs font-bold uppercase tracking-wider mb-2 block">Target Website</label>
-                        <div className="flex items-center gap-3 bg-black/20 p-1 rounded-xl border border-white/5 focus-within:border-primary/50 transition-colors">
-                          <div className="p-2 bg-white/5 rounded-lg text-white">
-                            <LayoutDashboard size={18} />
-                          </div>
-                          <select
-                            id="dmca-site-select"
-                            className="bg-transparent border-none text-white text-sm font-medium focus:ring-0 w-full outline-none [&>option]:bg-surface [&>option]:text-white"
-                            defaultValue=""
-                          >
-                            <option value="" disabled>Choose site...</option>
-                            {(settings.dmcaSites || []).map(site => (
-                              <option key={site} value={site}>{site}</option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => setIsManagingSites(!isManagingSites)}
-                            className="p-2 hover:bg-white/10 rounded-lg text-secondary hover:text-white transition-colors"
-                            title="Manage Sites"
-                          >
-                            <Settings size={14} />
-                          </button>
-                        </div>
-
-                        <AnimatePresence>
-                          {isManagingSites && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              className="overflow-hidden"
-                            >
-                              <div className="mt-4 p-4 bg-black/40 rounded-xl border border-white/10 space-y-3">
-                                <div className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={newSiteName}
-                                    onChange={(e) => setNewSiteName(e.target.value)}
-                                    placeholder="Add new site..."
-                                    className="flex-1 bg-black/20 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary/50"
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter' && newSiteName.trim()) {
-                                        actions.addDmcaSite(newSiteName.trim());
-                                        setNewSiteName('');
-                                      }
-                                    }}
-                                  />
-                                  <button
-                                    onClick={() => {
-                                      if (newSiteName.trim()) {
-                                        actions.addDmcaSite(newSiteName.trim());
-                                        setNewSiteName('');
-                                      }
-                                    }}
-                                    className="px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg text-xs font-bold transition-colors"
-                                  >
-                                    <Plus size={16} />
-                                  </button>
-                                </div>
-                                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
-                                  {(settings.dmcaSites || []).map(site => (
-                                    <div key={site} className="flex items-center gap-2 bg-white/5 px-2 py-1 rounded text-xs text-secondary group hover:bg-white/10 transition-colors">
-                                      {editingSite === site ? (
-                                        <div className="flex items-center gap-1">
-                                          <input
-                                            autoFocus
-                                            type="text"
-                                            value={editValue}
-                                            onChange={(e) => setEditValue(e.target.value)}
-                                            onKeyDown={(e) => {
-                                              if (e.key === 'Enter') {
-                                                if (editValue.trim() && editValue !== site) {
-                                                  (actions as any).renameDmcaSite(site, editValue.trim());
-                                                }
-                                                setEditingSite(null);
-                                              } else if (e.key === 'Escape') {
-                                                setEditingSite(null);
-                                              }
-                                            }}
-                                            onBlur={() => {
-                                              if (editValue.trim() && editValue !== site) {
-                                                (actions as any).renameDmcaSite(site, editValue.trim());
-                                              }
-                                              setEditingSite(null);
-                                            }}
-                                            className="bg-black/40 border border-primary/50 rounded px-1 py-0.5 text-white min-w-[100px] outline-none"
-                                          />
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <span onClick={() => { setEditingSite(site); setEditValue(site); }} className="cursor-pointer hover:text-white transition-colors">{site}</span>
-                                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button
-                                              onClick={() => { setEditingSite(site); setEditValue(site); }}
-                                              className="text-secondary/50 hover:text-primary transition-colors"
-                                            >
-                                              <Pencil size={10} />
-                                            </button>
-                                            <button
-                                              onClick={() => confirm(`Delete "${site}"?`) && actions.removeDmcaSite(site)}
-                                              className="text-secondary/50 hover:text-error transition-colors"
-                                            >
-                                              <X size={12} />
-                                            </button>
-                                          </div>
-                                        </>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-
-                      <div className="z-10">
-                        <button
-                          disabled={isGenerating}
-                          onClick={async () => {
-                            const siteSelect = document.getElementById('dmca-site-select') as HTMLSelectElement;
-                            const site = siteSelect.value || 'Generic Site';
-
-                            if (!settings.groqApiKey) {
-                              alert("Please configure your Groq API Key in Settings > AI Integration first.");
-                              setIsSettingsOpen(true);
-                              return;
-                            }
-
-                            setIsGenerating(true);
-                            setDmcaContent('Generating with Groq Llama 3...');
-
-                            try {
-                              // 1. Try AI Generation
-                              let currentText = '';
-                              await generateDmcaLetter(selectedClient.name, site, settings.groqApiKey, selectedClient.dmcaProfile, (token) => {
-                                currentText += token;
-                                setDmcaContent(currentText);
-                              });
-                              if (actions.sendSystemNotification) actions.sendSystemNotification(`AI generated letter for ${site}`);
-                            } catch (error) {
-                              console.error("AI Generation failed", error);
-                              // 2. Fallback
-                              const template = `Date: ${new Date().toLocaleDateString()}
-
-To Whom It May Concern at ${site},
-
-I am writing on behalf of ${selectedClient.name} regarding the unauthorized use of their intellectual property on your platform (${site}).
-
-The original copyrighted work is: [DESCRIPTION OF WORK]
-The unauthorized material is located at: [URL]
-
-I have a good faith belief that use of the material in the manner complained of is not authorized by the copyright owner, its agent, or the law.
-
-I state, under penalty of perjury, that the information in this notification is accurate and that I am authorized to act on behalf of the owner of an exclusive right that is allegedly infringed.
-
-Sincerely,
-[YOUR NAME]`;
-                              setDmcaContent(template);
-                              alert("Generation failed. Using offline template. Check your API Key.");
-                            } finally {
-                              setIsGenerating(false);
-                            }
-                          }}
-                          className={`px-8 py-4 ${isGenerating ? 'bg-primary/50 cursor-wait' : 'bg-primary hover:bg-primary/90'} text-white rounded-xl font-bold transition-all shadow-lg hover:shadow-primary/20 flex items-center gap-3 transform ${!isGenerating && 'hover:-translate-y-1 active:scale-95'} whitespace-nowrap`}
-                        >
-                          <Zap size={20} className={`fill-white ${isGenerating ? 'animate-pulse' : ''}`} />
-                          {isGenerating ? 'Generating...' : 'Generate Letter'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Editable Template Area */}
-                    <div className="flex-1 glass rounded-2xl border border-white/5 relative group cursor-text flex flex-col min-h-0" onClick={() => document.getElementById('dmca-textarea')?.focus()}>
-                      <div className="absolute top-4 right-4 z-20 flex gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(dmcaContent);
-                            if (actions.sendSystemNotification) actions.sendSystemNotification('DMCA Notice Copied');
-                          }}
-                          className="p-2 glass hover:bg-white/10 text-primary rounded-lg transition-colors"
-                          title="Copy to Clipboard"
-                        >
-                          <Copy size={16} />
-                        </button>
-                      </div>
-                      <textarea
-                        id="dmca-textarea"
-                        value={dmcaContent}
-                        onChange={(e) => setDmcaContent(e.target.value)}
-                        className="w-full h-full bg-transparent border-none outline-none p-8 font-mono text-sm text-secondary/90 leading-relaxed resize-none placeholder-white/20"
-                        placeholder="Select a site and click Generate to start..."
-                        spellCheck={false}
-                      />
-                      <div className="absolute bottom-0 right-0 p-8 opacity-5 pointer-events-none">
-                        <Zap size={180} />
-                      </div>
-                    </div>
-                  </motion.div>
+                {clientTab === 'dmca' && selectedClient && (
+                  <DmcaGenerator
+                    client={selectedClient}
+                    settings={settings}
+                    onOpenSettings={() => setIsSettingsOpen(true)}
+                    onNotify={actions.sendSystemNotification}
+                    actions={{
+                      addDmcaSite: actions.addDmcaSite,
+                      removeDmcaSite: actions.removeDmcaSite,
+                      renameDmcaSite: actions.renameDmcaSite,
+                      addDmcaHosting: actions.addDmcaHosting,
+                      removeDmcaHosting: actions.removeDmcaHosting,
+                      renameDmcaHosting: actions.renameDmcaHosting,
+                    }}
+                  />
                 )}
-                {clientTab === 'profile' && (
-                  <motion.div
-                    key="profile-tab"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="flex flex-col gap-6 flex-1 overflow-y-auto pr-2"
-                  >
-                    <div className="glass p-8 rounded-2xl border border-white/5 space-y-6">
-                      <div className="flex items-center justify-between mb-6">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                          <UserCheck size={20} className="text-primary" />   DMCA Client Profile
-                        </h3>
-                        <button
-                          onClick={() => {
-                            if (actions.sendSystemNotification) actions.sendSystemNotification('Profile Saved Successfully');
-                          }}
-                          className="flex items-center gap-2 px-4 py-2 bg-primary/20 hover:bg-primary/30 text-primary border border-primary/30 rounded-lg text-xs font-bold uppercase tracking-wider transition-all"
-                        >
-                          <Save size={16} />
-                          Save Profile
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold uppercase tracking-wider text-secondary">Name</label>
-                          <input
-                            type="text"
-                            value={selectedClient.dmcaProfile?.legalName || ''}
-                            onChange={(e) => actions.updateClientProfile(selectedClient.id, { ...selectedClient.dmcaProfile, legalName: e.target.value } as any)}
-                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
-                            placeholder="e.g. John Doe"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold uppercase tracking-wider text-secondary">Contact Email</label>
-                          <input
-                            type="text"
-                            value={selectedClient.dmcaProfile?.email || ''}
-                            onChange={(e) => actions.updateClientProfile(selectedClient.id, { ...selectedClient.dmcaProfile, email: e.target.value } as any)}
-                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
-                            placeholder="e.g. legal@example.com"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold uppercase tracking-wider text-secondary">Phone Number</label>
-                          <input
-                            type="text"
-                            value={selectedClient.dmcaProfile?.phone || ''}
-                            onChange={(e) => actions.updateClientProfile(selectedClient.id, { ...selectedClient.dmcaProfile, phone: e.target.value } as any)}
-                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
-                            placeholder="e.g. +1 (555) 123-4567"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-xs font-bold uppercase tracking-wider text-secondary">Physical Address</label>
-                          <input
-                            type="text"
-                            value={selectedClient.dmcaProfile?.address || ''}
-                            onChange={(e) => actions.updateClientProfile(selectedClient.id, { ...selectedClient.dmcaProfile, address: e.target.value } as any)}
-                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
-                            placeholder="e.g. 123 Legal Avenue, NY, USA"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-secondary">Original Source / Model Page URL</label>
-                        <input
-                          type="text"
-                          value={selectedClient.dmcaProfile?.contentSourceUrl || ''}
-                          onChange={(e) => actions.updateClientProfile(selectedClient.id, { ...selectedClient.dmcaProfile, contentSourceUrl: e.target.value } as any)}
-                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
-                          placeholder="e.g. https://example.com/models/my-client-model"
-                        />
-                        <p className="text-xs text-secondary/40">This link will be included in the letter to specify the original authorized content.</p>
-                      </div>
-
-                      <div className="pt-4 border-t border-white/5">
-                        <p className="text-xs text-secondary/60 italic">These details will be automatically used by the AI to sign off your DMCA letters.</p>
-                      </div>
-                    </div>
-                  </motion.div>
+                {clientTab === 'profile' && selectedClient && (
+                  <ProfileEditor
+                    client={selectedClient}
+                    onUpdateProfile={actions.updateClientProfile}
+                    onNotify={actions.sendSystemNotification}
+                  />
                 )}
               </AnimatePresence>
             </motion.div>

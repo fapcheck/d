@@ -3,7 +3,7 @@
  * Включает статистику, здоровье продуктивности и предсказания.
  */
 
-import type { Priority, Effort } from './core';
+import type { Priority, Effort, Task, Client } from './core';
 
 /** Записи истории действий */
 export type HistoryEntryType =
@@ -17,10 +17,13 @@ export type HistoryEntryType =
 
 /** Данные для записи истории */
 export type HistoryData =
-    | { title: string; priority: Priority; effort: Effort; clientIds?: number[] }
-    | { id: number; name: string; priority: Priority }
-    | { previousValue?: unknown; newValue?: unknown }
-    | Record<string, unknown>;
+    | Task // full task for create/delete/restore
+    | Client // full client for add/remove/restore
+    | { title: string; priority: Priority; effort: Effort; clientIds?: number[] } // batch task create
+    | { isDone: boolean } // task completion toggle
+    | { id: number; name: string; priority: Priority } // legacy client
+    | { previousValue?: unknown; newValue?: unknown } // generic updates
+    | Record<string, unknown>; // fallback
 
 export interface HistoryEntry {
     id: number;

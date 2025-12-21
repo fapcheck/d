@@ -2,14 +2,16 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { BaseDirectory, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { arrayMove } from '@dnd-kit/sortable';
-import { DEFAULT_SETTINGS, DB_FILENAME, ACHIEVEMENTS } from '../constants';
+import { DB_FILENAME, ACHIEVEMENTS } from '../constants';
+import { DEFAULT_SETTINGS } from '../types';
 import { DateUtils, GamificationUtils, AnalyticsUtils } from '../utils';
 import type {
   Client, Task, Priority, Effort, AppSettings, Comment, UserProgress, Achievement, UserStats,
-  FocusSession, HistoryEntry, HistoryData, NoteItem
+  FocusSession, HistoryEntry, HistoryData, NoteItem, DmcaProfile
 } from '../types';
 import { useAudioEngine } from './useAudioEngine';
 import { useConfetti } from './useConfetti';
+import { useSettings } from './useSettings';
 
 
 // --- Helper: Type Guards & Normalization ---
@@ -134,7 +136,8 @@ const calculateUserStats = (clients: Client[], focusSessions: FocusSession[]): U
 
 export function useZenData() {
   const [clients, setClients] = useState<Client[]>([]);
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  // Use extracted settings hook
+  const { settings, setSettings, settingsRef, toggleSound, updateSettings, addDmcaSite, removeDmcaSite, renameDmcaSite, addDmcaHosting, removeDmcaHosting, renameDmcaHosting } = useSettings();
   const [isLoaded, setIsLoaded] = useState(false);
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -142,12 +145,10 @@ export function useZenData() {
 
   // OPTIMIZATION: Refs for stable callbacks
   const clientsRef = useRef(clients);
-  const settingsRef = useRef(settings);
   const historyRef = useRef(history);
   const historyIndexRef = useRef(historyIndex);
 
   useEffect(() => { clientsRef.current = clients; }, [clients]);
-  useEffect(() => { settingsRef.current = settings; }, [settings]);
   useEffect(() => { historyRef.current = history; }, [history]);
   useEffect(() => { historyIndexRef.current = historyIndex; }, [historyIndex]);
 
@@ -180,10 +181,10 @@ export function useZenData() {
             await writeTextFile(DB_FILENAME, '[]', { baseDir: BaseDirectory.AppLocalData });
           }
         } catch (fsErr) {
-          console.warn('FS Access failed, falling back to localStorage', fsErr);
+          // FS Access failed, falling back to localStorage
           const local = localStorage.getItem('zen_backup_web');
           if (local) {
-            loadedClients = (JSON.parse(local) as any[]).map(normalizeClient).filter(Boolean) as Client[];
+            loadedClients = (JSON.parse(local) as unknown[]).map(normalizeClient).filter((c): c is Client => c !== null);
           }
         }
 
@@ -245,7 +246,13 @@ export function useZenData() {
         totalPoints: 0, level: 1, currentLevelPoints: 0, nextLevelPoints: 100,
         achievements: ACHIEVEMENTS, focusSessions: [],
         stats: calculateUserStats([], []), history: [], timePredictions: [],
-        productivityHealth: {} as any
+        productivityHealth: {
+          score: 0,
+          level: 'good',
+          factors: [],
+          recommendations: [],
+          trends: { direction: 'stable', change: 0, period: 'week', prediction: { nextWeek: 0, confidence: 0 } }
+        }
       };
     }
 
@@ -416,13 +423,13 @@ export function useZenData() {
         id: Date.now(), name: name.trim(), priority, notes: [], accounts: [], tasks: [], createdAt: Date.now()
       };
       setClients(prev => [...prev, newClient]);
-      addToHistory('client_add', `Added project "${newClient.name}"`, newClient as any, newClient.id);
+      addToHistory('client_add', `Added project "${newClient.name}"`, newClient, newClient.id);
     },
     removeClient: (id: number) => {
       const client = clientsRef.current.find(c => c.id === id);
       if (client) {
         setClients(prev => prev.filter(c => c.id !== id));
-        addToHistory('client_remove', `Removed "${client.name}"`, client as any, id);
+        addToHistory('client_remove', `Removed "${client.name}"`, client, id);
       }
     },
     // ... existing updates
@@ -447,8 +454,8 @@ export function useZenData() {
     updateAccount: (clientId: number, accountId: number, content: string) => {
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, accounts: c.accounts.map(a => a.id === accountId ? { ...a, content } : a) } : c));
     },
-    updateClientProfile: (clientId: number, profile: any) => {
-      setClients(prev => prev.map(c => c.id === clientId ? { ...c, dmcaProfile: profile } : c));
+    updateClientProfile: (clientId: number, profile: Partial<DmcaProfile>) => {
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, dmcaProfile: { ...c.dmcaProfile, ...profile } as DmcaProfile } : c));
     },
     addTask: (clientId: number, title: string, priority: Priority, effort: Effort) => {
       const newTask: Task = {
@@ -491,7 +498,7 @@ export function useZenData() {
       addToHistory(
         'task_create',
         `Created "${cleanTitle}" for ${uniqueClientIds.length} projects`,
-        { title: cleanTitle, priority, effort } as any,
+        { title: cleanTitle, priority, effort },
         undefined
       );
     },
@@ -569,7 +576,7 @@ export function useZenData() {
         addToHistory(
           'task_complete',
           `Marked "${task.title}" as ${willBeDone ? 'done' : 'todo'}`,
-          { isDone: willBeDone } as any,
+          { isDone: willBeDone },
           cId,
           tId
         );
@@ -591,7 +598,7 @@ export function useZenData() {
       const task = client?.tasks.find(t => t.id === tId);
       if (task) {
         setClients(prev => prev.map(c => c.id === cId ? { ...c, tasks: c.tasks.filter(t => t.id !== tId) } : c));
-        addToHistory('task_delete', `Deleted "${task.title}"`, task as any, cId, tId);
+        addToHistory('task_delete', `Deleted "${task.title}"`, task, cId, tId);
       }
     },
     reorderTasks: (cId: number, activeId: number, overId: number) => {
@@ -602,44 +609,15 @@ export function useZenData() {
         return { ...c, tasks: arrayMove(c.tasks, oldIndex, newIndex) };
       }));
     },
-    toggleSound: () => {
-      const current = settingsRef.current;
-      const next = { ...current, soundEnabled: !current.soundEnabled };
-      setSettings(next);
-      localStorage.setItem('zen_settings', JSON.stringify(next));
-    },
-    updateSettings: (newSettings: Partial<AppSettings>) => {
-      setSettings(prev => {
-        const next = { ...prev, ...newSettings };
-        localStorage.setItem('zen_settings', JSON.stringify(next));
-        return next;
-      });
-    },
-    addDmcaSite: (site: string) => {
-      setSettings(prev => {
-        const currentSites = prev.dmcaSites || [];
-        if (currentSites.includes(site)) return prev;
-        const updated = { ...prev, dmcaSites: [...currentSites, site].sort() };
-        localStorage.setItem('zen_settings', JSON.stringify(updated));
-        return updated;
-      });
-    },
-    removeDmcaSite: (site: string) => {
-      setSettings(prev => {
-        const updated = { ...prev, dmcaSites: (prev.dmcaSites || []).filter(s => s !== site) };
-        localStorage.setItem('zen_settings', JSON.stringify(updated));
-        return updated;
-      });
-    },
-    renameDmcaSite: (oldName: string, newName: string) => {
-      setSettings(prev => {
-        const currentSites = prev.dmcaSites || [];
-        const updatedSites = currentSites.map(s => s === oldName ? newName.trim() : s).sort();
-        const updated = { ...prev, dmcaSites: updatedSites };
-        localStorage.setItem('zen_settings', JSON.stringify(updated));
-        return updated;
-      });
-    },
+    // Settings functions from useSettings hook
+    toggleSound,
+    updateSettings,
+    addDmcaSite,
+    removeDmcaSite,
+    renameDmcaSite,
+    addDmcaHosting,
+    removeDmcaHosting,
+    renameDmcaHosting,
     exportData: () => {
       const blob = new Blob([JSON.stringify(clientsRef.current, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);

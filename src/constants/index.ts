@@ -208,8 +208,3 @@ export const HEALTH_LEVELS = {
         description: 'Критическое состояние'
     },
 } as const;
-
-export const DEFAULT_SETTINGS = {
-    soundEnabled: true,
-    groqApiKey: '',
-};

@@ -4,7 +4,7 @@
  */
 
 // Core types
-export type { Priority, Effort, Comment, Task, Client, AppSettings } from './core';
+export type { Priority, Effort, Comment, Task, Client, AppSettings, NoteItem, DmcaProfile } from './core';
 export { DEFAULT_SETTINGS } from './core';
 
 // Analytics types
