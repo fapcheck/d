@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LayoutDashboard, Settings, Plus, Pencil, X, Zap, Copy } from 'lucide-react';
 import { generateDmcaLetter } from '../services/aiService';
+import { logger } from '../utils';
 import type { Client, AppSettings, DmcaProfile } from '../types';
 
 interface DmcaGeneratorProps {
@@ -42,20 +43,22 @@ export const DmcaGenerator: React.FC<DmcaGeneratorProps> = ({
     const [dmcaContent, setDmcaContent] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
+    // Refs for select elements instead of document.getElementById
+    const siteSelectRef = useRef<HTMLSelectElement>(null);
+    const hostingSelectRef = useRef<HTMLSelectElement>(null);
+    const upstreamSelectRef = useRef<HTMLSelectElement>(null);
+
     const handleGenerate = async () => {
         const isHostingMode = recipientType === 'hosting';
         const isUpstreamMode = recipientType === 'upstream';
 
         let target: string;
         if (isUpstreamMode) {
-            const upstreamSelect = document.getElementById('dmca-upstream-select') as HTMLSelectElement;
-            target = upstreamSelect?.value || 'Upstream Provider';
+            target = upstreamSelectRef.current?.value || 'Upstream Provider';
         } else if (isHostingMode) {
-            const hostingSelect = document.getElementById('dmca-hosting-select') as HTMLSelectElement;
-            target = hostingSelect?.value || 'Generic Hosting';
+            target = hostingSelectRef.current?.value || 'Generic Hosting';
         } else {
-            const siteSelect = document.getElementById('dmca-site-select') as HTMLSelectElement;
-            target = siteSelect?.value || 'Generic Site';
+            target = siteSelectRef.current?.value || 'Generic Site';
         }
 
         if (!settings.groqApiKey) {
@@ -83,7 +86,7 @@ export const DmcaGenerator: React.FC<DmcaGeneratorProps> = ({
             );
             onNotify?.(`AI generated letter for ${target}`);
         } catch (error) {
-            console.error("AI Generation failed", error);
+            logger.error("AI Generation failed", error as Error);
             const template = `Date: ${new Date().toLocaleDateString()}
 
 To Whom It May Concern at ${target},
@@ -150,6 +153,7 @@ Sincerely,
                                         <LayoutDashboard size={18} />
                                     </div>
                                     <select
+                                        ref={siteSelectRef}
                                         id="dmca-site-select"
                                         className="bg-transparent border-none text-white text-sm font-medium focus:ring-0 w-full outline-none [&>option]:bg-surface [&>option]:text-white"
                                         defaultValue=""
@@ -268,6 +272,7 @@ Sincerely,
                                         <LayoutDashboard size={18} />
                                     </div>
                                     <select
+                                        ref={hostingSelectRef}
                                         id="dmca-hosting-select"
                                         className="bg-transparent border-none text-white text-sm font-medium focus:ring-0 w-full outline-none [&>option]:bg-surface [&>option]:text-white"
                                         defaultValue=""
@@ -414,6 +419,7 @@ Sincerely,
                                         <LayoutDashboard size={18} />
                                     </div>
                                     <select
+                                        ref={upstreamSelectRef}
                                         id="dmca-upstream-select"
                                         className="bg-transparent border-none text-white text-sm font-medium focus:ring-0 w-full outline-none [&>option]:bg-surface [&>option]:text-white"
                                         defaultValue=""

@@ -9,6 +9,8 @@ interface GroqResponse {
 }
 
 import { DmcaProfile } from '../types';
+import { EXAMPLE_DMCA_HOSTING_LETTER } from '../constants';
+import { buildDmcaPrompt, SYSTEM_MESSAGE } from '../constants/dmcaPrompts';
 
 export const generateDmcaLetter = async (
     clientName: string,
@@ -60,67 +62,26 @@ ${selectedSites && selectedSites.length > 0 ? `Infringing Sites Hosted by Them: 
         recipientContext = `This DMCA notice is directed to the website "${targetName}" regarding infringing content on their platform.`;
     }
 
-    const prompt = `Write a DMCA-COMPLIANT Takedown Notice in the FIRST PERSON ("I").
+    // Add example letter reference for hosting mode
+    const exampleLetterReference = isHostingMode ? `
 
-RECIPIENT: ${targetDescription}
-${recipientContext}
+EXAMPLE LETTER FOR REFERENCE:
+Use the following example as a guide for structure, tone, and escalation language when creating the complaint to the hosting provider:
 
-IDENTITY INFORMATION:
-- Stage Name / Performer Name (for content identification): ${clientName}
-- Legal Name (for signature): ${profile?.legalName || '[LEGAL NAME REQUIRED]'}
-${senderDetails}
+${EXAMPLE_DMCA_HOSTING_LETTER}
 
-RULE: In the BODY of the letter, refer to content featuring "${clientName}" (stage name). 
-In the SIGNATURE, use ONLY the legal name "${profile?.legalName || '[LEGAL NAME]'}".
+IMPORTANT: Use this as a TEMPLATE and STYLE GUIDE. Replace placeholder information with the actual details provided above. Maintain the professional, direct tone and include similar escalation language about upstream providers and payment processors when appropriate.
+` : '';
 
-${sourceContent}
-
-INFRINGING MATERIAL LOCATION:
-[INSERT SPECIFIC URLS OF INFRINGING CONTENT HERE]
-
-CRITICAL REQUIREMENTS FOR DMCA COMPLIANCE (17 U.S.C. § 512(c)(3)):
-
-1. IDENTIFICATION OF COPYRIGHTED WORK:
-   "I am the copyright owner of original content featuring ${clientName}."
-
-2. IDENTIFICATION OF INFRINGING MATERIAL:
-   "The infringing material is located at the following URL(s):" + URL placeholder.
-
-3. GOOD FAITH BELIEF STATEMENT (EXACT WORDING - MANDATORY):
-   "I have a good faith belief that use of the material in the manner complained of is not authorized by the copyright owner, its agent, or the law."
-
-4. PERJURY STATEMENT (EXACT WORDING - MANDATORY):
-   "I swear, under penalty of perjury, that the information in this notification is accurate and that I am the copyright owner or am authorized to act on behalf of the owner of an exclusive right that is allegedly infringed."
-
-5. DEADLINE:
-   State: "I demand removal within 48 hours" or "Expeditious removal is required under the DMCA."
-   NEVER use 7 days or any longer timeframe.
-
-6. UPSTREAM PROVIDER WARNING (INCLUDE THIS):
-   Add: "Failure to comply will result in notification to your upstream hosting provider and domain registrar."
-
-7. SIGNATURE:
-   Format: "/s/ ${profile?.legalName || '[Legal Name]'}"
-   MUST be the legal name, NOT the stage name.
-
-TONE REQUIREMENTS - BE A ROBOT, NOT A HUMAN:
-- Use words: "demand", "require", "notify", "violation"
-- NEVER use: "please", "kindly", "respectfully", "thank you", "appreciate", "would you"
-- Write like automated legal software, not a human being
-- No emotional language, no personal appeals, no frustration
-- Keep under 300 words - shorter is better
-- Be cold, formal, procedural
-
-STRUCTURE:
-1. Subject: "DMCA Takedown Notice"
-2. Statement of copyright ownership (mention stage name ${clientName})
-3. Infringing URLs placeholder
-4. 48-hour removal demand
-5. Good faith belief (exact words)
-6. Perjury statement (exact words)
-7. Upstream provider warning
-8. Contact info + Legal name signature
-`;
+    const prompt = buildDmcaPrompt({
+        clientName,
+        targetDescription,
+        recipientContext,
+        senderDetails,
+        sourceContent,
+        exampleLetterReference,
+        legalName: profile?.legalName || '[LEGAL NAME REQUIRED]'
+    });
 
     try {
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -131,7 +92,7 @@ STRUCTURE:
             },
             body: JSON.stringify({
                 messages: [
-                    { role: "system", content: "You are a DMCA compliance specialist. Generate takedown notices that are legally compliant with 17 U.S.C. § 512(c)(3). Use neutral, professional language. Include ALL required statutory elements. Focus on compliance, not intimidation. Write in FIRST PERSON. Output ONLY the letter - no explanations." },
+                    { role: "system", content: SYSTEM_MESSAGE },
                     { role: "user", content: prompt }
                 ],
                 model: "llama-3.3-70b-versatile",

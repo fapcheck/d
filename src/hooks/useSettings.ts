@@ -4,11 +4,13 @@
  * Handles settings persistence, sound toggle, and DMCA site/hosting management.
  */
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { AppSettings } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
+import { logger, validateNonEmptyString } from '../utils';
+import { STORAGE_KEYS } from '../constants';
 
-const STORAGE_KEY = 'zen_settings';
+const STORAGE_KEY = STORAGE_KEYS.SETTINGS;
 
 export function useSettings() {
     const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
@@ -16,6 +18,19 @@ export function useSettings() {
 
     // Keep ref in sync with state
     useEffect(() => { settingsRef.current = settings; }, [settings]);
+
+    // Helper to persist settings to localStorage
+    const persistSettings = useCallback((updater: (prev: AppSettings) => AppSettings) => {
+        setSettings(prev => {
+            const updated = updater(prev);
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+            } catch (e) {
+                logger.error('Failed to save settings to localStorage', e as Error);
+            }
+            return updated;
+        });
+    }, []);
 
     // Load settings from localStorage on mount
     useEffect(() => {
@@ -25,84 +40,92 @@ export function useSettings() {
                 setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(stored) });
             }
         } catch (e) {
-            console.error('Failed to load settings:', e);
+            logger.error('Failed to load settings from localStorage. Using defaults.', e as Error);
         }
     }, []);
 
     const actions = useMemo(() => ({
         toggleSound: () => {
             const current = settingsRef.current;
-            const next = { ...current, soundEnabled: !current.soundEnabled };
-            setSettings(next);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+            persistSettings(() => ({ ...current, soundEnabled: !current.soundEnabled }));
         },
 
         updateSettings: (newSettings: Partial<AppSettings>) => {
-            setSettings(prev => {
-                const next = { ...prev, ...newSettings };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-                return next;
-            });
+            persistSettings(prev => ({ ...prev, ...newSettings }));
         },
 
         // --- DMCA Site Management ---
         addDmcaSite: (site: string) => {
-            setSettings(prev => {
+            const validSite = validateNonEmptyString(site);
+            if (!validSite) {
+                logger.warn('Attempted to add empty DMCA site');
+                return;
+            }
+
+            persistSettings(prev => {
                 const currentSites = prev.dmcaSites || [];
-                if (currentSites.includes(site)) return prev;
-                const updated = { ...prev, dmcaSites: [...currentSites, site].sort() };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-                return updated;
+                if (currentSites.includes(validSite)) return prev;
+                return { ...prev, dmcaSites: [...currentSites, validSite].sort() };
             });
         },
 
         removeDmcaSite: (site: string) => {
-            setSettings(prev => {
-                const updated = { ...prev, dmcaSites: (prev.dmcaSites || []).filter(s => s !== site) };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-                return updated;
-            });
+            persistSettings(prev => ({
+                ...prev,
+                dmcaSites: (prev.dmcaSites || []).filter(s => s !== site)
+            }));
         },
 
         renameDmcaSite: (oldName: string, newName: string) => {
-            setSettings(prev => {
+            const validNewName = validateNonEmptyString(newName);
+            if (!validNewName) {
+                logger.warn('Attempted to rename DMCA site with empty name');
+                return;
+            }
+
+            persistSettings(prev => {
                 const currentSites = prev.dmcaSites || [];
-                const updatedSites = currentSites.map(s => s === oldName ? newName.trim() : s).sort();
-                const updated = { ...prev, dmcaSites: updatedSites };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-                return updated;
+                const updatedSites = currentSites.map(s => s === oldName ? validNewName : s).sort();
+                return { ...prev, dmcaSites: updatedSites };
             });
         },
 
         // --- DMCA Hosting Provider Management ---
         addDmcaHosting: (hosting: string) => {
-            setSettings(prev => {
+            const validHosting = validateNonEmptyString(hosting);
+            if (!validHosting) {
+                logger.warn('Attempted to add empty DMCA hosting');
+                return;
+            }
+
+            persistSettings(prev => {
                 const currentHostings = prev.dmcaHostings || [];
-                if (currentHostings.includes(hosting)) return prev;
-                const updated = { ...prev, dmcaHostings: [...currentHostings, hosting].sort() };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-                return updated;
+                if (currentHostings.includes(validHosting)) return prev;
+                return { ...prev, dmcaHostings: [...currentHostings, validHosting].sort() };
             });
         },
 
         removeDmcaHosting: (hosting: string) => {
-            setSettings(prev => {
-                const updated = { ...prev, dmcaHostings: (prev.dmcaHostings || []).filter(h => h !== hosting) };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-                return updated;
-            });
+            persistSettings(prev => ({
+                ...prev,
+                dmcaHostings: (prev.dmcaHostings || []).filter(h => h !== hosting)
+            }));
         },
 
         renameDmcaHosting: (oldName: string, newName: string) => {
-            setSettings(prev => {
+            const validNewName = validateNonEmptyString(newName);
+            if (!validNewName) {
+                logger.warn('Attempted to rename DMCA hosting with empty name');
+                return;
+            }
+
+            persistSettings(prev => {
                 const currentHostings = prev.dmcaHostings || [];
-                const updatedHostings = currentHostings.map(h => h === oldName ? newName.trim() : h).sort();
-                const updated = { ...prev, dmcaHostings: updatedHostings };
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-                return updated;
+                const updatedHostings = currentHostings.map(h => h === oldName ? validNewName : h).sort();
+                return { ...prev, dmcaHostings: updatedHostings };
             });
         },
-    }), []);
+    }), [persistSettings]);
 
     return {
         settings,

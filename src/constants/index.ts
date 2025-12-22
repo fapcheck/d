@@ -154,6 +154,13 @@ export const EFFORT_CONFIG = {
 /** Имя файла базы данных */
 export const DB_FILENAME = 'zen-db.json';
 
+/** Storage keys for localStorage */
+export const STORAGE_KEYS = {
+    SETTINGS: 'zen_settings',
+    SESSIONS: 'zen_sessions',
+    BACKUP_WEB: 'zen_backup_web'
+} as const;
+
 /** Цвета для графиков */
 export const CHART_COLORS = {
     primary: '#3b82f6',
@@ -208,3 +215,44 @@ export const HEALTH_LEVELS = {
         description: 'Критическое состояние'
     },
 } as const;
+
+/** Example DMCA letter for hosting provider complaints */
+export const EXAMPLE_DMCA_HOSTING_LETTER = `Subject: URGENT: DMCA Takedown Notice - Copyright Infringement - [Domain Name]
+
+To the Legal & Abuse Department at [Name of Hosting Company],
+
+RE: Copyright Infringement on [Domain Name] / IP: [Insert IP Address]
+
+I am writing to formally notify you that your network is being used to host and distribute unauthorized copies of copyrighted material. This notice is submitted in compliance with the Digital Millennium Copyright Act (DMCA), 17 U.S.C. § 512.
+
+**INFRINGING CONTENT:**
+The following URLs are hosted on your servers and must be removed immediately:
+
+1. https://www.youtube.com/watch?v=KsZ6tROaVOQ
+2. https://www.youtube.com/watch?v=-s7TCuCpB5c
+3. https://www.collinsdictionary.com/us/dictionary/english/three
+
+**DEADLINE AND CONSEQUENCES:**
+I am providing you with a strict window of **48 hours** to remove or disable access to this material.
+
+Please be advised that your company's "Safe Harbor" protection is contingent upon expeditious removal of infringing content. If you fail to act within this 48-hour period, I will immediately proceed with the following escalation protocols without further notice:
+
+1. **UPSTREAM NETWORK NOTIFICATION:**
+   I will file formal complaints with your Upstream Providers (Tier 1/Tier 2 networks). I will submit evidence that your subnet is being used to harbor illegal content, requesting that they null-route your IP addresses to mitigate their own liability.
+
+2. **PAYMENT PROCESSOR AUDIT (Visa/Mastercard/PayPal):**
+   I will report your hosting service to the Compliance & Risk departments of your payment processors. I will provide evidence that your merchant accounts are facilitating the monetization of intellectual property theft. This action is aimed at suspending your ability to process credit card payments (TMF/MATCH listing).
+
+**LEGAL DECLARATIONS:**
+1. I have a good faith belief that use of the material in the manner complained of is not authorized by the copyright owner, its agent, or the law.
+2. The information in this notification is accurate.
+3. Under penalty of perjury, I am authorized to act on behalf of the owner of an exclusive right that is allegedly infringed.
+
+Confirm receipt of this notice and the removal of the content immediately.
+
+Sincerely,
+
+[Your Full Legal Name]
+[Your Title/Position]
+[Your Phone Number]
+`;

@@ -455,7 +455,8 @@ export function useZenData() {
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, accounts: c.accounts.map(a => a.id === accountId ? { ...a, content } : a) } : c));
     },
     updateClientProfile: (clientId: number, profile: Partial<DmcaProfile>) => {
-      setClients(prev => prev.map(c => c.id === clientId ? { ...c, dmcaProfile: { ...c.dmcaProfile, ...profile } as DmcaProfile } : c));
+      const defaultProfile: DmcaProfile = { legalName: '', address: '', email: '', phone: '' };
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, dmcaProfile: { ...defaultProfile, ...c.dmcaProfile, ...profile } } : c));
     },
     addTask: (clientId: number, title: string, priority: Priority, effort: Effort) => {
       const newTask: Task = {

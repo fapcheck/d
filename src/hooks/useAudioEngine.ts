@@ -163,5 +163,14 @@ export const useAudioEngine = (enabled: boolean) => {
         }
     }, [enabled, initCtx, stopAmbient]);
 
+    // Cleanup on unmount
+    React.useEffect(() => {
+        return () => {
+            if (ambientNodeRef.current) {
+                try { ambientNodeRef.current.stop(); } catch { /* ignore */ }
+            }
+        };
+    }, []);
+
     return { playSuccess, playAchievement, playAmbient, stopAmbient, isAmbientPlaying };
 };
