@@ -241,7 +241,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                 <div className="p-4 bg-white/5 text-center">
                     <p className="text-xs text-secondary opacity-50">
-                        Сам Себе DMCA v0.4.0
+                        ZenManager v0.3.0
                     </p>
                 </div>
             </motion.div>

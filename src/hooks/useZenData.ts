@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { BaseDirectory, readTextFile, writeTextFile, exists, mkdir } from '@tauri-apps/plugin-fs';
 import { isPermissionGranted, requestPermission, sendNotification } from '@tauri-apps/plugin-notification';
 import { arrayMove } from '@dnd-kit/sortable';
-import { DB_FILENAME, ACHIEVEMENTS } from '../constants';
+import { DB_FILENAME, ACHIEVEMENTS, STORAGE_KEYS } from '../constants';
 import { DEFAULT_SETTINGS } from '../types';
 import { DateUtils, GamificationUtils, AnalyticsUtils } from '../utils';
 import type {
@@ -21,7 +21,10 @@ const isRawTask = (t: unknown): t is Task => {
   return (
     typeof obj.id === 'number' &&
     typeof obj.title === 'string' &&
-    typeof obj.isDone === 'boolean'
+    typeof obj.isDone === 'boolean' &&
+    // Validate priority and effort exist (will be normalized later if invalid)
+    obj.priority !== undefined &&
+    obj.effort !== undefined
   );
 };
 
@@ -50,6 +53,28 @@ const normalizeClient = (v: unknown): Client | null => {
     createdAt: typeof obj.createdAt === 'number' ? obj.createdAt : Date.now(),
     targetCompletionDate: typeof obj.targetCompletionDate === 'number' ? obj.targetCompletionDate : undefined,
     dmcaProfile: obj.dmcaProfile as DmcaProfile | undefined
+  };
+};
+
+// --- Helper: Normalize FocusSession ---
+const normalizeFocusSession = (raw: unknown): FocusSession | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+
+  // Validate required fields
+  if (obj.id === undefined || obj.clientId === undefined ||
+    typeof obj.startTime !== 'number' || typeof obj.duration !== 'number') {
+    return null;
+  }
+
+  return {
+    id: obj.id as number | string,
+    clientId: obj.clientId as number | string,
+    taskId: obj.taskId as number | string | undefined,
+    startTime: obj.startTime,
+    endTime: typeof obj.endTime === 'number' ? obj.endTime : undefined,
+    duration: obj.duration,
+    wasCompleted: typeof obj.wasCompleted === 'boolean' ? obj.wasCompleted : false
   };
 };
 
@@ -167,7 +192,7 @@ export function useZenData() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const localSettings = localStorage.getItem('zen_settings');
+        const localSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
         if (localSettings) setSettings(JSON.parse(localSettings));
 
         let loadedClients: Client[] = [];
@@ -190,7 +215,11 @@ export function useZenData() {
         }
 
         const localSessions = localStorage.getItem('zen_sessions');
-        if (localSessions) setFocusSessions(JSON.parse(localSessions));
+        if (localSessions) {
+          const parsed = JSON.parse(localSessions) as unknown[];
+          const normalized = parsed.map(normalizeFocusSession).filter((s): s is FocusSession => s !== null);
+          setFocusSessions(normalized);
+        }
 
         setClients(loadedClients.sort((a, b) => a.id - b.id));
       } catch {
@@ -380,7 +409,7 @@ export function useZenData() {
       }
       case 'task_complete': {
         const { taskId, clientId } = entry;
-        const data = entry.data as { isDone: boolean };
+        const data = entry.data as { isDone: boolean; completedAt?: number };
         // If forward: sets to stored state (data.isDone)
         // If reverse: sets to opposite of stored state (!data.isDone)
         const targetState = action === 'forward' ? data.isDone : !data.isDone;
@@ -391,7 +420,8 @@ export function useZenData() {
             ...c,
             tasks: c.tasks.map(t => {
               if (t.id !== taskId) return t;
-              return { ...t, isDone: targetState, completedAt: targetState ? Date.now() : undefined };
+              // Use stored completedAt when redoing, or undefined when undoing completion
+              return { ...t, isDone: targetState, completedAt: targetState ? data.completedAt : undefined };
             })
           };
         }));
@@ -575,10 +605,12 @@ export function useZenData() {
 
       if (task) {
         const willBeDone = !task.isDone;
+        // Store the completedAt timestamp in history for proper undo/redo
+        const completedAtTimestamp = willBeDone ? Date.now() : undefined;
         addToHistory(
           'task_complete',
           `Marked "${task.title}" as ${willBeDone ? 'done' : 'todo'}`,
-          { isDone: willBeDone },
+          { isDone: willBeDone, completedAt: completedAtTimestamp },
           cId,
           tId
         );
@@ -643,7 +675,7 @@ export function useZenData() {
       }));
     },
     undo, redo, getHistory: () => historyRef.current, dismissAchievement: () => setNewAchievement(null),
-    canUndo: () => historyIndexRef.current > 0, canRedo: () => historyIndexRef.current < historyRef.current.length - 1,
+    canUndo: () => historyIndexRef.current >= 0, canRedo: () => historyIndexRef.current < historyRef.current.length - 1,
     toggleAmbient: (enable: boolean) => {
       if (enable) playAmbient();
       else stopAmbient();
