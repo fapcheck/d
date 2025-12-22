@@ -48,7 +48,8 @@ const normalizeClient = (v: unknown): Client | null => {
     accounts: Array.isArray(obj.accounts) ? obj.accounts : (typeof obj.accounts_notes === 'string' && obj.accounts_notes ? [{ id: Date.now() + 1, content: obj.accounts_notes, createdAt: Date.now() }] : []),
     tasks,
     createdAt: typeof obj.createdAt === 'number' ? obj.createdAt : Date.now(),
-    targetCompletionDate: typeof obj.targetCompletionDate === 'number' ? obj.targetCompletionDate : undefined
+    targetCompletionDate: typeof obj.targetCompletionDate === 'number' ? obj.targetCompletionDate : undefined,
+    dmcaProfile: obj.dmcaProfile as DmcaProfile | undefined
   };
 };
 
