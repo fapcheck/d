@@ -294,6 +294,20 @@ export const SortableTaskItem = React.memo<SortableTaskItemProps>(({
       </div>
     </div>
   );
+}, (prevProps, nextProps) => {
+  // Custom comparison for React.memo - only re-render when task data actually changes
+  const prevTask = prevProps.task;
+  const nextTask = nextProps.task;
+
+  return (
+    prevTask.id === nextTask.id &&
+    prevTask.isDone === nextTask.isDone &&
+    prevTask.title === nextTask.title &&
+    prevTask.priority === nextTask.priority &&
+    prevTask.effort === nextTask.effort &&
+    prevTask.dueDate === nextTask.dueDate &&
+    prevTask.comments.length === nextTask.comments.length
+  );
 });
 
 SortableTaskItem.displayName = 'SortableTaskItem';

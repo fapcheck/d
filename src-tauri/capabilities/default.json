@@ -13,6 +13,9 @@
       "allow": [
         {
           "url": "https://api.groq.com/*"
+        },
+        {
+          "url": "http://localhost:11434/*"
         }
       ],
       "deny": []
@@ -24,8 +27,8 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        "$APPLOCALDATA",
-        "$APPLOCALDATA/**"
+        "$APPLOCALDATA/zen-db.json",
+        "$APPLOCALDATA"
       ]
     },
     "core:window:allow-set-always-on-top"

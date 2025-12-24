@@ -1,7 +1,6 @@
-import React, { useMemo, Suspense, lazy, useEffect, useState } from 'react';
+import React, { useMemo, Suspense, lazy, useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Calendar, Clock, AlertCircle, CheckCircle2, ChevronRight, Settings, Volume2, VolumeX, Menu, X, ArrowUpRight, Zap, Copy, LogOut, RotateCcw, Pin, PinOff, Trophy, Flame, Target, Sparkles, UserCheck, LayoutDashboard, ArrowLeft, UserPlus, Focus, FolderOpen, Check, BarChart3, AlertTriangle, RefreshCw, Save, Pencil } from 'lucide-react';
-import { generateDmcaLetter } from './services/aiService';
+import { Plus, Trash2, Clock, CheckCircle2, Settings, ArrowLeft, UserPlus, Focus, FolderOpen, Check, AlertTriangle, RefreshCw, LayoutDashboard, Copy } from 'lucide-react';
 
 import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';

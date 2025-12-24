@@ -14,6 +14,7 @@ const STORAGE_KEY = STORAGE_KEYS.SETTINGS;
 
 export function useSettings() {
     const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+    const [isSettingsLoaded, setIsSettingsLoaded] = useState(false);
     const settingsRef = useRef(settings);
 
     // Keep ref in sync with state
@@ -41,6 +42,8 @@ export function useSettings() {
             }
         } catch (e) {
             logger.error('Failed to load settings from localStorage. Using defaults.', e as Error);
+        } finally {
+            setIsSettingsLoaded(true);
         }
     }, []);
 
@@ -129,6 +132,7 @@ export function useSettings() {
 
     return {
         settings,
+        isSettingsLoaded,
         setSettings, // Exposed for initial load override in useZenData
         settingsRef,
         ...actions,
