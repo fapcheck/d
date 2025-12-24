@@ -122,19 +122,7 @@ function AppContent() {
   // Drag & Drop State
   const [activeId, setActiveId] = React.useState<number | null>(null);
 
-  // --- Default Sites Initialization ---
-  useEffect(() => {
-    if (settings.dmcaSites === undefined && actions.updateSettings) {
-      const defaultSites = [
-        "allmycams", "alphavids", "archivebate", "bestcamtv", "camhubcc",
-        "camripscom", "camshow0ws", "camshowdownload", "camshowrecorded",
-        "camshowrecordingscom", "camshowsrecordings", "camshowstv", "camvideosme",
-        "camwhores", "cb2cam", "chaturflix", "Generic / Other"
-      ];
-      // Only set if not already present (undefined check handled above)
-      actions.updateSettings({ dmcaSites: defaultSites });
-    }
-  }, [settings.dmcaSites, actions]);
+  // NOTE: Default DMCA sites initialization removed - sites are managed via Settings
 
   const [isManagingSites, setIsManagingSites] = useState(false);
   const [newSiteName, setNewSiteName] = useState('');
