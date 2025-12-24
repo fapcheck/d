@@ -100,20 +100,9 @@ export function useZenData() {
     onAchievementUnlocked
   );
 
-  // --- Default Sites Initialization ---
-  // Only initialize defaults AFTER settings are loaded from localStorage
-  // This prevents overwriting user's saved site preferences
-  useEffect(() => {
-    if (isSettingsLoaded && settings.dmcaSites === undefined) {
-      const defaultSites = [
-        "allmycams", "alphavids", "archivebate", "bestcamtv", "camhubcc",
-        "camripscom", "camshow0ws", "camshowdownload", "camshowrecorded",
-        "camshowrecordingscom", "camshowsrecordings", "camshowstv", "camvideosme",
-        "camwhores", "cb2cam", "chaturflix", "Generic / Other"
-      ];
-      updateSettings({ dmcaSites: defaultSites });
-    }
-  }, [isSettingsLoaded, settings.dmcaSites, updateSettings]);
+  // NOTE: Default DMCA sites initialization removed.
+  // Sites now start empty and persist correctly when user adds/removes them.
+  // This avoids race conditions between localStorage load and defaults.
 
   // --- History-Aware Actions ---
   const addClient = useCallback((name: string, priority: Priority) => {
